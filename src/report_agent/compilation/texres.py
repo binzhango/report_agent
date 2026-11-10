@@ -7,6 +7,7 @@ from math import isfinite
 from pathlib import Path
 from tempfile import mkdtemp
 
+from report_agent.compilation.diagnostics import compile_warnings
 from report_agent.metadata.models import CompilerOptions
 from report_agent.models.results import CompileResult, Diagnostic
 
@@ -100,11 +101,7 @@ class TexresCompiler:
         with pdf.open("rb") as handle:
             if handle.read(5) != b"%PDF-":
                 return failure("invalid_pdf", "Compiler output is not a PDF.")
-        warnings = tuple(
-            Diagnostic("compilation", "latex_warning", line.strip(), severity="warning")
-            for line in dict.fromkeys(details.splitlines())
-            if "Warning:" in line or "Overfull \\" in line
-        )
+        warnings = compile_warnings(details, entrypoint.read_text(encoding="utf-8"))
         return CompileResult(pdf, warnings, log if log.is_file() else transcript)
 
     @staticmethod

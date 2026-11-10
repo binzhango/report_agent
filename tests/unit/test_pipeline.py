@@ -57,11 +57,12 @@ def build(tmp_path: Path):
     compiler = RecordingCompiler()
     engine = JinjaTemplateEngine()
     workspaces = tmp_path / "workspaces"
+    registry = RendererRegistry({("text", None): TextRenderer()})
     renderer = ReportRenderer(
         metadata_loader=MetadataLoader(),
         templates=LocalTemplateRepository(),
-        validator=RenderValidator(engine),
-        renderers=RendererRegistry({"text": TextRenderer()}),
+        validator=RenderValidator(engine, registry),
+        renderers=registry,
         template_engine=engine,
         compiler=compiler,
         workspaces=TemporaryWorkspaceManager(workspaces),
@@ -129,7 +130,7 @@ def test_missing_renderer_strategy_has_structured_error(build) -> None:
         request.output,
     )
     result = renderer.render(request)
-    assert result.diagnostics[0].code == "invalid_input"
+    assert result.diagnostics[0].code == "unsupported_backend"
     assert "No renderer registered" in result.diagnostics[0].message
     assert result.diagnostics[0].input_name == "title"
     assert compiler.calls == 0
@@ -164,7 +165,53 @@ def test_bad_text_cleans_workspace_and_identifies_input(build) -> None:
     result = renderer.render(request)
     assert result.diagnostics[0].input_name == "title"
     assert compiler.calls == 0
-    assert list(workspaces.iterdir()) == []
+    assert not workspaces.exists()
+
+
+def test_missing_package_is_reported_per_input_before_compiling(build) -> None:
+    renderer, request, compiler, _ = build
+    request.metadata["inputs"]["title"]["style"] = {"typography": {"color": "#18343D"}}
+    result = renderer.render(request)
+    assert result.pdf_path is None
+    assert result.diagnostics[0].code == "missing_package"
+    assert result.diagnostics[0].input_name == "title"
+    assert "xcolor" in result.diagnostics[0].message
+    assert compiler.calls == 0
+
+
+def test_external_package_manifest_is_honored(build) -> None:
+    renderer, request, _, _ = build
+    request.metadata["inputs"]["title"]["style"] = {"typography": {"color": "#18343D"}}
+    request.metadata["provided_packages"] = ["xcolor"]
+    assert renderer.render(request).pdf_path is not None
+
+
+def test_unexpected_content_exception_returns_input_diagnostic(
+    build, monkeypatch
+) -> None:
+    renderer, request, compiler, _ = build
+
+    def fail(*args, **kwargs):
+        raise TypeError("unsupported dtype")
+
+    monkeypatch.setattr(TextRenderer, "render", fail)
+    result = renderer.render(request)
+    assert result.pdf_path is None
+    assert result.diagnostics[0].code == "internal_error"
+    assert result.diagnostics[0].input_name == "title"
+    assert compiler.calls == 0
+
+
+def test_unexpected_compiler_exception_returns_diagnostic(build, monkeypatch) -> None:
+    renderer, request, compiler, _ = build
+
+    def fail(*args, **kwargs):
+        raise KeyError("unexpected")
+
+    monkeypatch.setattr(compiler, "compile", fail)
+    result = renderer.render(request)
+    assert result.diagnostics[0].code == "internal_error"
+    assert result.diagnostics[0].stage == "compilation"
 
 
 def test_invalid_yaml_returns_structured_metadata_error(build, tmp_path: Path) -> None:

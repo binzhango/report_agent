@@ -159,3 +159,15 @@ def test_heatmap_accepts_nullable_numbers_and_rejects_infinity(tmp_path: Path) -
             InputDefinition(type="table", preset="heatmap_sequential"),
             RenderContext(tmp_path, "t"),
         )
+
+
+def test_unset_precision_preserves_rates_and_integer_counts(tmp_path: Path) -> None:
+    frame = pd.DataFrame({"rate": [0.123456789], "count": [12345]})
+    result = StylerTableRenderer().render(
+        TableInput(frame),
+        InputDefinition(type="table", show_index=False),
+        RenderContext(tmp_path, "t"),
+    )
+    assert "0.123456789" in result.latex
+    assert "12,345" in result.latex
+    assert "multirow" not in result.required_packages

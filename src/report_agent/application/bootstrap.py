@@ -20,18 +20,19 @@ from report_agent.templates.repository import LocalTemplateRepository
 def create_renderer() -> ReportRenderer:
     """Assemble the default template, content, compiler, and storage services."""
     template_engine = JinjaTemplateEngine()
+    renderers = RendererRegistry(
+        {
+            ("text", None): TextRenderer(),
+            ("image", None): ImageRenderer(),
+            ("graph", None): GraphRenderer(MatplotlibFigureExporter()),
+            ("table", "styler"): StylerTableRenderer(),
+        }
+    )
     return ReportRenderer(
         metadata_loader=MetadataLoader(),
         templates=LocalTemplateRepository(),
-        validator=RenderValidator(template_engine),
-        renderers=RendererRegistry(
-            {
-                "text": TextRenderer(),
-                "image": ImageRenderer(),
-                "graph": GraphRenderer(MatplotlibFigureExporter()),
-                "table": StylerTableRenderer(),
-            }
-        ),
+        renderers=renderers,
+        validator=RenderValidator(template_engine, renderers),
         template_engine=template_engine,
         compiler=TexresCompiler(),
         workspaces=TemporaryWorkspaceManager(),

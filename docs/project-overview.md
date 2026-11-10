@@ -31,7 +31,8 @@ flowchart LR
     Workspace --> Content[Render text, images, graphs, and tables]
     Content --> Style[Apply per-placeholder presentation]
     Style --> Jinja[Expand the complete template]
-    Jinja --> Compiler[Compile with texres]
+    Jinja --> Packages[Check required package declarations]
+    Packages --> Compiler[Compile with texres]
     Compiler --> Publish[Retain PDF, source, assets, and logs]
     Publish --> Cleanup[Clean workspace and return RenderResult]
 ```
@@ -64,7 +65,7 @@ src/report_agent/
 │   └── engine.py                # Jinja expansion and dependency inspection
 ├── rendering/
 │   ├── base.py                  # ContentRenderer protocol
-│   ├── registry.py              # Type-to-strategy selection
+│   ├── registry.py              # Type/backend-to-strategy selection
 │   ├── latex.py                 # Plain-text escaping
 │   ├── assets.py                # Graphics validation/staging
 │   ├── text.py
@@ -77,12 +78,22 @@ src/report_agent/
 │   └── styler.py                # Shared scoped style application
 ├── compilation/
 │   ├── base.py                  # LatexCompiler protocol
-│   └── texres.py                # Process lifecycle and diagnostics
+│   ├── texres.py                # Process lifecycle
+│   └── diagnostics.py           # Warnings and table overflow attribution
+├── validation/
+│   ├── text.py                  # Shared plain-text validation policy
+│   └── packages.py              # Template package declaration scanner
+├── resolution/                 # Optional pre-render content preparation
+│   ├── interfaces.py            # DataSource / AgentTextGenerator protocols
+│   ├── models.py                # Query bindings, bounded summaries, results
+│   └── resolver.py              # Resolve tables before dependent agent text
 ├── storage/
 │   ├── workspace.py            # Temporary resource lifetime
 │   └── artifacts.py            # Retained file publication
 └── interfaces/
-    └── cli/app.py              # Typer adapter
+    └── cli/
+        ├── app.py              # Typer adapter
+        └── inputs.py           # JSON/YAML manifests and CSV/Parquet loading
 ```
 
 ## Objects and dependency direction
@@ -96,6 +107,8 @@ src/report_agent/
 | `rendering` | `ContentRenderer`, `RendererRegistry`, concrete content strategies | Convert typed input to trusted LaTeX and staged graphics |
 | `presentation` | `PlaceholderStyler`, `LatexPlaceholderStyler` | Apply typography, headings, alignment, spacing, page breaks, and single-page boxes |
 | `compilation` | `LatexCompiler`, `TexresCompiler` | Run the selected engine with private output/cache, timeout, and structured diagnostics |
+| `validation` | `TemplatePackageScanner`, shared text policy | Check required declarations and reuse plain-text rules |
+| `resolution` | `ContentResolver`, `DataSource`, `AgentTextGenerator`, `QuerySource` | Optionally prepare tables and agent text before the render request |
 | `storage` | `WorkspaceManager`, `TemporaryWorkspaceManager`, `ArtifactStore`, `LocalArtifactStore` | Own temporary staging and retain finished artifacts |
 | `interfaces` | Typer `app` | Adapt CLI arguments/results to the core API |
 
@@ -114,12 +127,15 @@ The application composes these services; interfaces call it.
    mapping keys, unsupported options, and ambiguous types.
 2. Discover the entrypoint and non-hidden bundle files. Reject parent traversal
    and symlink resources. Generated `*.artifacts` directories are not staged.
-3. Validate placeholder declarations, supplied names/types, defaults, and text limits.
+3. Validate placeholder declarations, supplied names/types, defaults, text limits,
+   and availability of the selected renderer backend.
 4. Enter an isolated workspace and copy template resources.
 5. Resolve defaults and optional values, render each input, and apply its style.
-6. Expand Jinja once and write the complete `.tex` source.
+6. Expand Jinja once, validate required package declarations, and write the complete
+   `.tex` source. Tables carry source markers for overflow attribution.
 7. Compile with a bounded texres process. On cancellation/timeout, stop its process
    group where supported. Inspect exit status, PDF presence/signature, and warnings.
+   Attributed table width overflow is an error and prevents PDF publication.
 8. Retain expanded source at its original bundle-relative path, plus supported
    resources, graphics, and logs. Refuse artifact paths that overwrite source resources.
 9. Publish the final PDF only on success, then clean the workspace.
@@ -137,17 +153,23 @@ failures may have diagnostics without retained files.
   figure dimensions and axes layout; drawing can populate Matplotlib caches.
 - Tables support financial/comparison presets, sequential/diverging heatmaps,
   MultiIndex labels, missing values, precision, hidden indices, and longtable.
+  Omitted precision preserves numeric precision. The default `styler` backend is
+  implemented; `great_tables` has a registry boundary but no bundled adapter.
 - Placeholder styles support inline/block typography, headings, spacing,
   alignment, explicit page transitions, and unbreakable single-page containers.
 - Page/section structure and required packages remain template responsibilities.
-  Package requirements are reported by fragments but are not injected automatically.
+  Fragment requirements are checked against literal template declarations and
+  `provided_packages` before compilation; packages are not injected automatically.
+  The scanner follows local TeX/style/class dependencies but is not a TeX interpreter.
 - Templates are trusted document sources. Text escaping and disabled shell escape
   do not constitute complete operating-system isolation for arbitrary templates.
 - Each call has a private workspace. Thread safety, concurrent throughput, and
   matplotlib concurrency have not been established by the sequential benchmark.
 
-The Python API supports all content types. The CLI currently supports help,
-version, and rendering with repeated `--text name=value` arguments.
+The Python API supports all content types. The CLI accepts repeated `--text`,
+`--table` (CSV/Parquet), `--image`, and `--graph` assignments, or JSON/YAML
+`--inputs` manifests. Manifest paths are relative to the manifest; explicit flags
+override its values. Parquet requires the optional `parquet` extra.
 
 ## Examples, checks, and future work
 
@@ -165,6 +187,8 @@ inspection, publication, and process failures. Integration tests compile PDFs an
 check extracted content/pagination when texres and Poppler are available.
 
 Column layout planning is specified separately in the table layout proposal.
-Database preparation, agent assistance, and HTTP/job services are possible future
-integrations; there are no empty implementation packages for them. Business
-calculations and prose generation currently belong to caller code.
+The optional [content resolver](content-resolution.md) exposes injected data-source
+and text-generator interfaces, bounded summaries, and dependency ordering. Live
+database/model adapters and HTTP/job services remain future integrations. Business
+calculations and model invocation belong to application-owned adapters. See
+[review hardening](review-hardening.md) for the package, CLI, and diagnostic contracts.

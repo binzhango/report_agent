@@ -1,5 +1,6 @@
 """Apply metadata styling to prepared text, images, graphs, and tables."""
 
+from dataclasses import replace
 from typing import Protocol
 
 from report_agent.metadata.styles import PlaceholderStyle
@@ -47,7 +48,7 @@ class LatexPlaceholderStyler:
             )
         if layout.display == "inline":
             latex = "{" + "".join(declarations) + " " + content.latex + "}"
-            return RenderedContent(latex, content.assets, frozenset(packages))
+            return replace(content, latex=latex, required_packages=frozenset(packages))
 
         # Block alignment must finish its paragraph before leaving the scoped group.
         alignment = {
@@ -104,4 +105,4 @@ class LatexPlaceholderStyler:
             )
             + after
         )
-        return RenderedContent(latex, content.assets, frozenset(packages))
+        return replace(content, latex=latex, required_packages=frozenset(packages))

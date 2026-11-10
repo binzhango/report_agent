@@ -446,6 +446,7 @@ partials, and checks:
 - Required values are present, unless a default is available.
 - Runtime wrappers match the declared types.
 - Supplied text respects character limits.
+- The selected type/backend has a registered renderer.
 
 Output paths must end in `.pdf`. Graphics dimensions and table option compatibility
 are checked by metadata validation. Asset content and table data are checked
@@ -458,19 +459,22 @@ bundle resources into its `template/` subdirectory and operates on the copy.
 The original `.tex` source is preserved.
 
 For each declared input, the service resolves a supplied value, text default,
-or empty optional value. The registry maps metadata type to strategy:
+or empty optional value. The registry maps metadata type and backend to strategy:
 
 ```text
 text  -> TextRenderer
 image -> ImageRenderer
 graph -> GraphRenderer
-table -> StylerTableRenderer
+table, styler -> StylerTableRenderer (default table backend)
 ```
 
 Each strategy returns `RenderedContent`: a trusted LaTeX fragment, any generated
-asset paths, and required package names. Package names are currently descriptive;
-the service does not automatically edit the preamble or resolve missing packages.
-The complete template must load them.
+asset paths, and required package names. After Jinja expansion, the service checks
+those requirements against literal template declarations, local TeX/style/class
+dependencies, and explicit `provided_packages` assertions. Missing declarations
+produce `missing_package` diagnostics naming the input before compilation. The
+complete template must load its packages; the service does not edit the preamble.
+The scanner is not a full TeX interpreter or an installed-package checker.
 
 Text escapes special characters exactly once. Blank lines preserve paragraph
 boundaries; single newlines behave as spaces in normal LaTeX text. Markdown is
@@ -490,7 +494,9 @@ optional/default handling.
 The engine inserts the prepared fragments into the whole template once. It does
 not evaluate inserted user strings as another Jinja template. The result is a
 normal `.tex` document containing escaped text, `\includegraphics`, `tabular`, and
-`longtable` content. That expanded document is written in the workspace.
+`longtable` content. Table fragments also receive source comments so compiler
+overflow line ranges can identify the input. After package validation, the expanded
+document is written in the workspace.
 
 ### Stage 4: compilation
 

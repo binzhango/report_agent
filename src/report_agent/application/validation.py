@@ -13,12 +13,17 @@ from report_agent.models.inputs import (
 )
 from report_agent.models.results import Diagnostic
 from report_agent.models.template import TemplateBundle
+from report_agent.rendering.registry import RendererRegistry
 from report_agent.templates.engine import TemplateEngine
+from report_agent.validation.text import text_issues
 
 
 class RenderValidator:
-    def __init__(self, template_engine: TemplateEngine) -> None:
+    def __init__(
+        self, template_engine: TemplateEngine, renderers: RendererRegistry
+    ) -> None:
         self._template_engine = template_engine
+        self._renderers = renderers
 
     def validate(
         self,
@@ -30,7 +35,9 @@ class RenderValidator:
         issues = []
 
         def issue(code: str, message: str, name: str) -> None:
-            issues.append(Diagnostic("validation", code, message, input_name=name))
+            issues.append(
+                Diagnostic("input_validation", code, message, input_name=name)
+            )
 
         variables = self._template_engine.variables(bundle)
         for name in sorted(variables - metadata.inputs.keys()):
@@ -55,18 +62,13 @@ class RenderValidator:
                     issue("missing_input", "Required input was not supplied.", name)
                 continue
             value = inputs[name]
+            try:
+                self._renderers.get(definition.type, definition.backend)
+            except ValueError as exc:
+                issue("unsupported_backend", str(exc), name)
             if not isinstance(value, types[definition.type]):
                 issue("input_type", f"Expected a typed {definition.type} input.", name)
-            elif isinstance(value, TextInput) and not isinstance(value.text, str):
-                issue("input_type", "TextInput.text must be a string.", name)
-            elif (
-                isinstance(value, TextInput)
-                and definition.max_chars is not None
-                and len(value.text) > definition.max_chars
-            ):
-                issue(
-                    "text_length",
-                    f"Text exceeds {definition.max_chars} characters.",
-                    name,
-                )
+            elif isinstance(value, TextInput):
+                for code, message in text_issues(value, definition):
+                    issue(code, message, name)
         return tuple(issues)

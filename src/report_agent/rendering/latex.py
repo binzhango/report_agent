@@ -11,6 +11,9 @@ _SPECIAL = {
     "_": r"\_",
     "~": r"\textasciitilde{}",
     "^": r"\textasciicircum{}",
+    "<": r"\textless{}",
+    ">": r"\textgreater{}",
+    "|": r"\textbar{}",
 }
 
 

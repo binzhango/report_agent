@@ -54,6 +54,11 @@ uv run report render examples/plain_text \
   --output output/pdf/review.pdf
 ```
 
+The CLI also accepts `--table name=data.csv`, `--image name=logo.png`,
+`--graph name=trend.pdf`, and `--inputs content.json` or `content.yaml`.
+See the [input manifest and review changes](docs/review-hardening.md). For Parquet
+tables, install the optional extra with `uv sync --extra parquet`.
+
 Use `template.yaml` for the equivalent YAML metadata. Python callers may pass
 a mapping or `TemplateMetadata` directly instead of a metadata path.
 
@@ -103,6 +108,8 @@ src/report_agent/
   rendering/        # Text, image, graph, and table strategies
   presentation/     # Shared per-placeholder typography, sections, and containers
   compilation/      # Compiler interface and texres adapter
+  validation/       # Shared text policy and package-declaration checks
+  resolution/       # Optional data-source and agent-text interfaces
   storage/          # Workspace and artifact-store interfaces
   interfaces/cli/   # report command
 pyproject.toml      # Package metadata, dependencies, and tooling
@@ -118,12 +125,21 @@ labels, missing values, precision, hidden indices, and multi-page `longtable`.
 Graphics dimensions are validated and staged under generated filenames.
 JSON/YAML metadata, defaults, optional inputs, Jinja expansion, texres compilation,
 and retained source/logs/assets share one pipeline. The CLI currently exposes
-plain-text inputs; the Python API accepts all content types. Database/agent
-integrations, automatic wide/landscape layouts, and Great Tables remain future work.
+text and file-backed inputs; the Python API accepts all content types. Database/agent
+adapters, automatic wide/landscape layouts, and Great Tables remain future work.
+
+The optional [content resolver](docs/content-resolution.md) provides interfaces
+for application-owned data sources and text generators, without live database or
+model clients. Templates are checked for required packages before compilation,
+and attributed table overflow fails the build rather than publishing a clipped PDF.
 
 User and agent text is plain text only. The pipeline escapes LaTeX special
 characters, and template/metadata presentation controls formatting. Markdown and raw
 LaTeX in text fields will not be interpreted.
+
+XeLaTeX is the default engine. pdfLaTeX remains supported for compatible templates
+and text, including literal `<`, `>`, and `|`; it does not support arbitrary Unicode.
+Use XeLaTeX/LuaLaTeX with suitable template fonts for broader character coverage.
 
 See the [project overview](docs/project-overview.md) for package and class
 responsibilities, object collaboration, and dependency direction. The

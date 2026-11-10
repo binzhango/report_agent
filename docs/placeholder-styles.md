@@ -170,8 +170,10 @@ cell formatting and heatmap rules remain in table metadata such as `preset`.
 - With no style (or an empty style object), rendering retains the previous output.
 
 The template must load `xcolor` when using colors/boxes. It must also load the
-packages required by its content adapters. Package requirements are recorded in
-the fragment but are not automatically injected into the preamble.
+packages required by its content adapters. Before compilation, fragment requirements
+are checked against literal package declarations and `provided_packages` metadata.
+They are not automatically injected into the preamble. See the
+[package declaration contract](review-hardening.md#package-declarations) for scanner limits.
 
 Column splitting, automatic table-width planning, and template slot-capability
 validation are still proposed in the [table layout design](table-layout-design.md).

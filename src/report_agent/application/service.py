@@ -1,6 +1,7 @@
 """Public report facade; collaborators own individual rendering stages."""
 
 from collections.abc import Mapping
+from dataclasses import replace
 from pathlib import Path
 from shutil import copyfile
 
@@ -25,6 +26,7 @@ from report_agent.storage.artifacts import ArtifactStore
 from report_agent.storage.workspace import WorkspaceManager
 from report_agent.templates.engine import TemplateEngine
 from report_agent.templates.repository import TemplateRepository
+from report_agent.validation.packages import TemplatePackageScanner
 
 _RETAINED_EXTENSIONS = {
     ".tex",
@@ -39,10 +41,11 @@ _RETAINED_EXTENSIONS = {
 }
 
 
-class _ContentError(ValueError):
+class _ContentError(Exception):
     def __init__(self, input_name: str, cause: Exception) -> None:
         super().__init__(str(cause))
         self.input_name = input_name
+        self.cause = cause
 
 
 class ReportRenderer:
@@ -74,27 +77,64 @@ class ReportRenderer:
         stage = "metadata"
         try:
             metadata = self._metadata_loader.load(request.metadata)
-            stage = "template"
+            stage = "template_loading"
             bundle = self._templates.load(request.template, metadata)
-            stage = "validation"
+            stage = "output_validation"
             output = Path(request.output).expanduser().absolute()
             if output.suffix.lower() != ".pdf":
                 raise ValueError("Output path must end in .pdf.")
+            stage = "input_validation"
             issues = self._validator.validate(metadata, bundle, request.inputs)
             if issues:
                 return RenderResult(None, issues)
             with self._workspaces.create() as workspace:
                 stage = "staging"
                 staged = self._stage(bundle, workspace / "template")
-                stage = "content"
+                stage = "content_rendering"
                 content = self._content(metadata, request.inputs, workspace, staged)
-                stage = "template"
+                stage = "template_rendering"
                 source = self._template_engine.render(staged, content)
+                stage = "package_validation"
+                loaded = (
+                    TemplatePackageScanner().loaded(staged, source)
+                    | metadata.provided_packages
+                )
+                issues = tuple(
+                    Diagnostic(
+                        stage,
+                        "missing_package",
+                        f"Input requires package {package!r}; load it in the template.",
+                        input_name=name,
+                    )
+                    for name, fragment in content.items()
+                    for package in sorted(fragment.required_packages - loaded)
+                )
+                if issues:
+                    return RenderResult(None, issues)
                 staged.entrypoint.write_text(source, encoding="utf-8")
                 stage = "compilation"
                 compiled = self._compiler.compile(staged.entrypoint, metadata.compiler)
                 stage = "publication"
                 return self._publish(bundle, staged, content, compiled, output)
+        except _ContentError as exc:
+            code = (
+                "invalid_input"
+                if isinstance(exc.cause, ValueError)
+                else "build_failed"
+                if isinstance(exc.cause, OSError)
+                else "internal_error"
+            )
+            return RenderResult(
+                None,
+                (
+                    Diagnostic(
+                        stage,
+                        code,
+                        f"{type(exc.cause).__name__}: {exc}",
+                        input_name=exc.input_name,
+                    ),
+                ),
+            )
         except (OSError, ValueError, TemplateError) as exc:
             return RenderResult(
                 None,
@@ -105,11 +145,13 @@ class ReportRenderer:
                         if isinstance(exc, ValueError)
                         else "build_failed",
                         str(exc),
-                        input_name=exc.input_name
-                        if isinstance(exc, _ContentError)
-                        else None,
                     ),
                 ),
+            )
+        except Exception as exc:
+            return RenderResult(
+                None,
+                (Diagnostic(stage, "internal_error", f"{type(exc).__name__}: {exc}"),),
             )
 
     @staticmethod
@@ -140,14 +182,18 @@ class ReportRenderer:
                 fragment = (
                     RenderedContent("")
                     if value is None
-                    else self._renderers.get(definition.type).render(
+                    else self._renderers.get(
+                        definition.type, definition.backend
+                    ).render(
                         value,
                         definition,
                         RenderContext(workspace, name, bundle.entrypoint.parent),
                     )
                 )
-                content[name] = self._styler.apply(fragment, definition.style)
-            except (OSError, ValueError) as exc:
+                content[name] = replace(
+                    self._styler.apply(fragment, definition.style), kind=definition.type
+                )
+            except Exception as exc:
                 raise _ContentError(name, exc) from exc
         return content
 

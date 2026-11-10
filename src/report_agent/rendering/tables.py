@@ -1,5 +1,8 @@
 """Render DataFrames as native LaTeX tables using Styler."""
 
+from decimal import Decimal
+from numbers import Integral, Number
+
 import numpy as np
 import pandas as pd
 
@@ -39,12 +42,22 @@ class StylerTableRenderer:
                 for name in frame.columns.names
             ]
         )
+
+        def format_value(value: object) -> str:
+            if isinstance(value, str):
+                return value  # Styler has already escaped string values.
+            if isinstance(value, (Number, Decimal)) and not isinstance(value, bool):
+                spec = (
+                    ","
+                    if definition.precision is None or isinstance(value, Integral)
+                    else f",.{definition.precision}f"
+                )
+                return format(value, spec)
+            return escape_text(str(value))
+
         style = (
             frame.style.format(
-                precision=definition.precision
-                if definition.precision is not None
-                else 1,
-                thousands=",",
+                formatter=format_value,
                 na_rep="--",
                 escape="latex",
             )
@@ -55,7 +68,7 @@ class StylerTableRenderer:
             style = style.hide(axis="index")
         numeric = frame.select_dtypes(include="number").columns
         preset = definition.preset or "financial"
-        packages = {"booktabs", "multirow"}
+        packages = {"booktabs"}
         if preset.startswith("heatmap"):
             if len(numeric) != len(frame.columns):
                 raise ValueError("Heatmap tables require numeric columns only.")
@@ -87,4 +100,6 @@ class StylerTableRenderer:
         )
         if definition.longtable:
             packages.add("longtable")
+        if r"\multirow" in latex:
+            packages.add("multirow")
         return RenderedContent(latex, required_packages=frozenset(packages))

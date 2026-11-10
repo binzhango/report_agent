@@ -72,4 +72,14 @@ class JinjaTemplateEngine:
         template = environment.get_template(
             bundle.entrypoint.relative_to(bundle.root).as_posix()
         )
-        return template.render({name: value.latex for name, value in content.items()})
+        return template.render(
+            {
+                name: (
+                    f"\n% REPORT_AGENT_TABLE_BEGIN {name}\n{value.latex}"
+                    f"\n% REPORT_AGENT_TABLE_END {name}\n"
+                    if value.kind == "table" and value.latex
+                    else value.latex
+                )
+                for name, value in content.items()
+            }
+        )

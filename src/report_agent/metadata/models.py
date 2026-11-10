@@ -30,9 +30,26 @@ class InputDefinition(MetadataModel):
     show_index: bool | None = None
     longtable: bool | None = None
     style: PlaceholderStyle | None = None
+    backend: Literal["styler", "great_tables"] | None = None
+    source: Literal["user", "agent"] = "user"
+    prompt: str | None = None
+    uses: tuple[str, ...] = ()
 
     @model_validator(mode="after")
     def compatible_options(self) -> "InputDefinition":
+        if self.backend is not None and self.type != "table":
+            raise ValueError("backend is supported only for tables.")
+        if self.backend == "great_tables" and self.preset is not None:
+            raise ValueError("Presets for great_tables are not implemented.")
+        if self.source == "agent":
+            if self.type != "text" or not self.prompt or not self.prompt.strip():
+                raise ValueError(
+                    "Agent sources require a text input and a non-empty prompt."
+                )
+        elif self.prompt is not None or self.uses:
+            raise ValueError("prompt and uses require source: agent.")
+        if len(set(self.uses)) != len(self.uses):
+            raise ValueError("uses must contain unique table input names.")
         if self.type != "text" and (
             self.default is not None or self.max_chars is not None
         ):
@@ -79,6 +96,21 @@ class TemplateMetadata(MetadataModel):
     entrypoint: str = "main.tex"
     compiler: CompilerOptions = Field(default_factory=CompilerOptions)
     inputs: dict[str, InputDefinition]
+    provided_packages: frozenset[str] = frozenset()
+
+    @model_validator(mode="after")
+    def validate_dependencies(self) -> "TemplateMetadata":
+        for name, definition in self.inputs.items():
+            for dependency in definition.uses:
+                if (
+                    dependency not in self.inputs
+                    or self.inputs[dependency].type != "table"
+                ):
+                    raise ValueError(
+                        f"{name}: uses must refer to declared table inputs "
+                        f"({dependency!r})."
+                    )
+        return self
 
     @field_validator("inputs")
     @classmethod

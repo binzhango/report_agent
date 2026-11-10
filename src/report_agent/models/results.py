@@ -21,6 +21,7 @@ class RenderedContent:
     latex: str
     assets: tuple[Path, ...] = ()
     required_packages: frozenset[str] = frozenset()
+    kind: str | None = None
 
 
 @dataclass(frozen=True)
