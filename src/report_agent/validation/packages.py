@@ -6,10 +6,10 @@ from pathlib import Path
 from report_agent.models.template import TemplateBundle
 
 _COMMAND = re.compile(
-    r"\\(usepackage|RequirePackage|documentclass|LoadClass|input|include)\s*"
-    r"(?:\[([^\]]*)\]\s*)?\{([^{}]+)\}"
+    r"\\(?:PassOptionsToPackage\s*\{(?P<passed_options>[^{}]+)\}\s*|"
+    r"(?P<command>usepackage|RequirePackage|documentclass|LoadClass|input|include)\s*"
+    r"(?:\[(?P<options>[^\]]*)\]\s*)?)\{(?P<names>[^{}]+)\}"
 )
-_PASS_OPTIONS = re.compile(r"\\PassOptionsToPackage\s*\{([^{}]+)\}\s*\{([^{}]+)\}")
 
 
 def _source(text: str) -> str:
@@ -29,26 +29,26 @@ def _source(text: str) -> str:
 class TemplatePackageScanner:
     def loaded(self, bundle: TemplateBundle, expanded_source: str) -> frozenset[str]:
         packages: set[str] = set()
-        xcolor_options: set[str] = set()
-        class_options: set[str] = set()
+        xcolor_table_option = False
         visited: set[Path] = set()
-        pending = [(bundle.entrypoint, expanded_source)]
-        while pending:
-            current, source = pending.pop()
-            if current.resolve() in visited:
-                continue
-            visited.add(current.resolve())
-            source = _source(source)
-            for options, names in _PASS_OPTIONS.findall(source):
-                if "xcolor" in {name.strip() for name in names.split(",")}:
-                    xcolor_options.update(
-                        option.strip() for option in options.split(",")
-                    )
-            for command, options, names in _COMMAND.findall(source):
-                if command in {"documentclass", "LoadClass"}:
-                    class_options.update(
-                        option.strip() for option in options.split(",")
-                    )
+        root = bundle.root.resolve()
+
+        def scan(current: Path, source: str) -> None:
+            nonlocal xcolor_table_option
+            visited.add(current)
+            for match in _COMMAND.finditer(_source(source)):
+                command = match["command"]
+                names = [name.strip() for name in match["names"].split(",")]
+                options = match["passed_options"] or match["options"] or ""
+                has_table_option = "table" in {
+                    option.strip() for option in options.split(",")
+                }
+                if command is None:
+                    if "xcolor" in names and has_table_option:
+                        xcolor_table_option = True
+                    continue
+                if command == "documentclass" and has_table_option:
+                    xcolor_table_option = True
                 suffix = (
                     ".sty"
                     if command in {"usepackage", "RequirePackage"}
@@ -56,27 +56,27 @@ class TemplatePackageScanner:
                     if command in {"documentclass", "LoadClass"}
                     else ".tex"
                 )
-                for name in names.split(","):
-                    name = name.strip()
+                for name in names:
                     if not name or "\\" in name or "#" in name:
                         continue
                     if suffix == ".sty":
+                        if (
+                            name == "xcolor"
+                            and name not in packages
+                            and (xcolor_table_option or has_table_option)
+                        ):
+                            packages.add("colortbl")
                         packages.add(name)
-                        if name == "xcolor":
-                            xcolor_options.update(
-                                option.strip() for option in options.split(",")
-                            )
                     relative = Path(name)
                     if not relative.suffix:
                         relative = relative.with_suffix(suffix)
                     for base in (bundle.entrypoint.parent, bundle.root, current.parent):
                         path = (base / relative).resolve()
-                        if (
-                            path.is_relative_to(bundle.root.resolve())
-                            and path.is_file()
-                        ):
-                            pending.append((path, path.read_text(encoding="utf-8")))
+                        if path.is_relative_to(root) and path.is_file():
+                            if path not in visited:
+                                # Process the dependency before the next command.
+                                scan(path, path.read_text(encoding="utf-8"))
                             break
-        if "xcolor" in packages and "table" in (xcolor_options | class_options):
-            packages.add("colortbl")
+
+        scan(bundle.entrypoint.resolve(), expanded_source)
         return frozenset(packages)

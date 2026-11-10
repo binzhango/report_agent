@@ -128,9 +128,12 @@ class ContentResolver:
     ) -> TextInput:
         request = GenerationRequest(definition.prompt, tables, definition.max_chars)
         for attempt in range(2):
+            retry_suffix = " after 1 retry" if attempt else ""
             text = self._text_generator.generate(request)
             if not isinstance(text, str):
-                raise ValueError("Agent text generator must return plain text.")
+                raise ValueError(
+                    f"Agent text generator must return plain text{retry_suffix}."
+                )
             value = TextInput(text)
             issues = text_issues(value, definition)
             if not issues:
@@ -144,7 +147,7 @@ class ContentResolver:
                     f"{request.max_chars} characters.",
                 )
             else:
-                raise ValueError(message)
+                raise ValueError(f"{message.rstrip('.')}{retry_suffix}.")
 
     def _summary(
         self, frame: pd.DataFrame, head_rows: int, max_row_chars: int

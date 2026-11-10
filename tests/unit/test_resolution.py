@@ -219,6 +219,9 @@ def test_generator_receives_limit_and_exactly_one_length_retry(retry_succeeds) -
     else:
         assert result.diagnostics[0].code == "resolution_failed"
         assert result.diagnostics[0].input_name == "summary"
+        assert "Text exceeds the 50-character limit after 1 retry." in (
+            result.diagnostics[0].message
+        )
         assert "summary" not in result.inputs
 
 
@@ -235,6 +238,7 @@ def test_non_length_validation_failure_is_not_retried() -> None:
     )
     assert len(requests) == 1
     assert result.diagnostics[0].code == "resolution_failed"
+    assert "after 1 retry" not in result.diagnostics[0].message
 
 
 @pytest.mark.parametrize("character", ["x", "é", "\\"])

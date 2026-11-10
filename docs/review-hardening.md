@@ -28,8 +28,9 @@ The scanner follows literal `\usepackage`, `\RequirePackage`, `\documentclass`,
 Comments and common verbatim/listing bodies are ignored.
 Options are inspected: `xcolor` with the `table` option supplies `colortbl` for
 generated cell colors. Loading `colortbl` explicitly also satisfies that requirement.
-The scanner also recognizes `\PassOptionsToPackage{table}{xcolor}` and global
-`\documentclass[table]{...}` options when `xcolor` is loaded in the scanned bundle.
+The scanner follows literal commands and local dependencies in source order.
+Forward `table` via `\PassOptionsToPackage{table}{xcolor}` or the global
+`\documentclass[table]{...}` option before the first `xcolor` load.
 These options alone do not imply that `xcolor` itself was loaded. External
 class/style dependencies still use `provided_packages` when they cannot be scanned.
 

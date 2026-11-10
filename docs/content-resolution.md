@@ -160,8 +160,8 @@ profiles alone do not establish that generated business claims are correct.
 - If generated text exceeds `max_chars`, the resolver allows exactly one retry.
   The next request contains the same prompt, table summaries, and limit, plus
   `retry_feedback` describing the length violation and previous character count.
-  A second invalid output fails with `resolution_failed`; output is never silently
-  truncated. Other validation failures and adapter exceptions are not retried.
+  A second invalid output fails with `resolution_failed` and reports that the
+  retry was used. The resolver retries only length violations.
 - Failures can retain partial resolved inputs. Check diagnostics before rendering.
 - Unexpected adapter exceptions are logged with tracebacks and become `internal_error`; cancellation exceptions
   still propagate.
