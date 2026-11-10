@@ -1,0 +1,11 @@
+schema_version: 1
+id: plain_text
+entrypoint: main.tex
+compiler:
+  engine: pdflatex
+inputs:
+  title: {type: text, max_chars: 120}
+  period: {type: text, default: Reporting period not specified}
+  summary: {type: text, max_chars: 2000}
+  notes: {type: text, default: Prepared for internal review.}
+  footer: {type: text, required: false}

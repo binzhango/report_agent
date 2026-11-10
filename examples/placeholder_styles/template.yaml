@@ -1,0 +1,95 @@
+id: placeholder_styles
+compiler:
+  engine: pdflatex
+inputs:
+  title:
+    type: text
+    style:
+      typography:
+        font_size_pt: 24
+        color: '#18343D'
+        bold: true
+  summary:
+    type: text
+    style:
+      typography:
+        font_size_pt: 12
+        line_height_pt: 17
+        paragraph_spacing_pt: 8
+        color: '#18343D'
+      layout:
+        display: block
+        alignment: left
+        space_before_pt: 18
+        space_after_pt: 12
+        heading:
+          text: Executive summary
+          level: subsection
+      container:
+        width: 1\linewidth
+        background_color: '#EDF4F4'
+        border_color: '#087E8B'
+        border_width_pt: 0.8
+        padding_pt: 14
+  logo:
+    type: image
+    width: 22mm
+    style:
+      layout:
+        display: block
+        alignment: center
+        page_break_before: true
+        heading:
+          text: Image placeholder
+          level: subsection
+      container:
+        width: 0.55\linewidth
+        padding_pt: 12
+        background_color: '#F3F6F9'
+        border_color: '#CBD5DF'
+        border_width_pt: 0.5
+  trend:
+    type: graph
+    width: 0.9\linewidth
+    style:
+      typography:
+        color: '#18343D'
+      layout:
+        display: block
+        alignment: center
+        space_before_pt: 20
+        heading:
+          text: Graph placeholder
+          level: subsection
+  financial:
+    type: table
+    precision: 1
+    show_index: false
+    style:
+      typography:
+        font_size_pt: 10
+        color: '#18343D'
+      layout:
+        display: block
+        alignment: center
+        page_break_before: true
+        space_after_pt: 16
+        heading:
+          text: Table placeholder
+          level: subsection
+      container:
+        width: 1\linewidth
+        padding_pt: 12
+        border_color: '#087E8B'
+        border_width_pt: 0.6
+  footer:
+    type: text
+    default: All four content types use the same placeholder presentation layer.
+    style:
+      typography:
+        font_size_pt: 10
+        italic: true
+        color: '#5A6C73'
+      layout:
+        display: block
+        alignment: center

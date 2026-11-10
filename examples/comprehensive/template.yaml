@@ -1,0 +1,71 @@
+schema_version: 1
+id: comprehensive
+entrypoint: main.tex
+compiler:
+  engine: xelatex
+inputs:
+  logo:
+    type: image
+    width: 38mm
+  period:
+    type: text
+  title:
+    type: text
+    max_chars: 100
+  summary:
+    type: text
+    max_chars: 1500
+  revenue:
+    type: text
+  growth:
+    type: text
+  margin:
+    type: text
+  retention:
+    type: text
+  trend:
+    type: graph
+    width: 1\linewidth
+  outlook:
+    type: text
+  financial:
+    type: table
+    preset: financial
+    precision: 1
+    show_index: false
+  comparison:
+    type: table
+    preset: comparison
+    precision: 1
+    show_index: false
+  financial_commentary:
+    type: text
+  sequential:
+    type: table
+    preset: heatmap_sequential
+    precision: 0
+  diverging:
+    type: table
+    preset: heatmap_diverging
+    precision: 2
+  regional_graph:
+    type: graph
+    width: 1\linewidth
+  assumptions:
+    type: text
+    default: The base plan assumes stable pricing and no material change in regional
+      demand. Investment decisions remain subject to the next operating review.
+  optional_note:
+    type: text
+    required: false
+  products:
+    type: table
+    preset: financial
+    precision: 1
+  disclaimer:
+    type: text
+  cohorts:
+    type: table
+    precision: 0
+    show_index: false
+    longtable: true

@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "id": "rotated_tables",
+  "entrypoint": "main.tex",
+  "compiler": {"engine": "pdflatex"},
+  "inputs": {
+    "revenue_table": {
+      "type": "table",
+      "preset": "financial",
+      "precision": 0,
+      "show_index": false
+    }
+  }
+}

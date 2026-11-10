@@ -1,0 +1,103 @@
+\documentclass[10pt]{article}
+\usepackage{fontspec}
+\setmainfont{TeX Gyre Heros}
+\usepackage[letterpaper,margin=0.8in,headheight=15pt]{geometry}
+\usepackage[table]{xcolor}
+\usepackage{graphicx,booktabs,multirow,longtable,array}
+\usepackage{fancyhdr,lastpage}
+\definecolor{ink}{HTML}{18343D}
+\definecolor{teal}{HTML}{087E8B}
+\definecolor{muted}{HTML}{5A6C73}
+\definecolor{paper}{HTML}{EDF4F4}
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small\color{muted}NORTHSTAR / QUARTERLY BUSINESS REVIEW}
+\fancyhead[R]{\small\color{muted}Q3 2026}
+\fancyfoot[L]{\footnotesize\color{muted}Illustrative data | Internal review}
+\fancyfoot[R]{\footnotesize\color{muted}\thepage\ / \pageref{LastPage}}
+\renewcommand{\headrulewidth}{0.3pt}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{7pt}
+\renewcommand{\arraystretch}{1.3}
+\setlength{\tabcolsep}{10pt}
+\color{ink}
+\newcommand{\eyebrow}[1]{{\small\bfseries\color{teal}#1}\par}
+\newcommand{\pagetitle}[2]{\eyebrow{#1}{\fontsize{25}{30}\selectfont\bfseries #2}\par\vspace{7pt}}
+\newcommand{\note}[1]{\par{\footnotesize\color{muted}#1}\par}
+\newcommand{\kpi}[3]{\colorbox{paper}{\begin{minipage}[t]{0.285\linewidth}\vspace{7pt}{\small #1}\par{\Large\bfseries #2}\par{\footnotesize\color{teal}#3}\vspace{7pt}\end{minipage}}}
+\begin{document}
+\thispagestyle{fancy}
+<<logo>>\hfill {\small\color{muted}<<period>>}\par
+\vspace{18pt}
+\pagetitle{01 / EXECUTIVE OVERVIEW}{<<title>>}
+<<summary>>\par
+\vspace{6pt}
+\kpi{Quarterly revenue}{<<revenue>>}{<<growth>>}\hfill
+\kpi{Operating margin}{<<margin>>}{3.6 points above Q2}\hfill
+\kpi{Customer retention}{<<retention>>}{1.5 points above Q2}\par
+\vspace{15pt}
+\subsection*{Revenue gained momentum through September}
+\begin{center}<<trend>>\end{center}
+\note{Figure 1. Monthly revenue and quarterly plan. USD millions; all data is illustrative.}
+<<outlook>>
+
+\newpage
+\pagetitle{02 / FINANCIAL PERFORMANCE}{Growth with operating discipline}
+Revenue increased across all four regions. Delivery efficiency improved while
+commercial investment remained focused on the strongest customer segments.
+\subsection*{Regional financial summary}
+\note{Table 1. USD thousands, except operating margin (\%).}
+\begin{center}\small <<financial>>\end{center}
+\subsection*{Channel comparison}
+\note{Table 2. Quarterly channel performance. The largest value in each numeric column is shaded.}
+\begin{center}\small <<comparison>>\end{center}
+\subsection*{Management interpretation}
+<<financial_commentary>>
+\note{Source: illustrative management accounts. Values are rounded at display time.}
+
+\newpage
+\pagetitle{03 / OPERATING SIGNALS}{Where performance is strongest}
+\subsection*{Service attainment by region}
+\note{Table 3. Share of monthly service targets achieved (\%). Darker blue indicates higher attainment.}
+\begin{center}\small <<sequential>>\end{center}
+The strongest service attainment was in North America. The EMEA support
+handover remains the main process improvement priority for next quarter.
+\subsection*{Relationship between operating measures}
+\note{Table 4. Illustrative correlations on a fixed scale from -1 to +1. Red indicates negative values; blue indicates positive values.}
+\begin{center}\small <<diverging>>\end{center}
+Customer retention moves in the same direction as satisfaction and inversely
+with response time. These associations guide further analysis and do not establish causation.
+\note{Source: illustrative service operations data.}
+
+\newpage
+\pagetitle{04 / COMMERCIAL OUTLOOK}{A balanced base for the next quarter}
+\subsection*{Revenue contribution by region}
+\begin{center}<<regional_graph>>\end{center}
+\note{Figure 2. Regional revenue contribution, USD millions.}
+\subsection*{Priority actions}
+\begin{enumerate}
+\item Expand account coverage in North America while maintaining service quality.
+\item Improve EMEA support transitions and reduce median response time.
+\item Continue selective investment in partner-led acquisition in APAC.
+\end{enumerate}
+\subsection*{Planning assumptions}
+<<assumptions>>
+<<optional_note>>
+
+\newpage
+\pagetitle{05 / PRODUCT DETAIL}{A closer look at recurring revenue}
+\note{Table 5. Product performance by business group. USD thousands; renewal (\%).}
+\begin{center}\small <<products>>\end{center}
+\subsection*{Reading the detail}
+The platform business remains the largest contributor to recurring revenue.
+R\&D Services supports specialist engagements, while the customer success team
+has prioritized adoption in the newer product lines.
+\note{A dash denotes a measure that is not yet available for a newly launched offer.}
+\vfill
+\note{<<disclaimer>>}
+
+\newpage
+\pagetitle{APPENDIX / CUSTOMER COHORTS}{Retention across the customer base}
+\note{Table 6. Illustrative cohort register. Repeated headers continue on subsequent pages. ARR is USD thousands.}
+{\small <<cohorts>>}
+\end{document}

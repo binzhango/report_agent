@@ -1,0 +1,33 @@
+\documentclass[11pt]{article}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage[letterpaper,margin=0.8in]{geometry}
+\usepackage{booktabs,multirow,pdflscape,rotating}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{8pt}
+\renewcommand{\arraystretch}{1.4}
+\setlength{\tabcolsep}{8pt}
+\begin{document}
+\begin{landscape}
+\section*{1. Landscape page}
+The page displays horizontally in a PDF viewer. The table remains upright
+relative to the displayed page. This gives a wide table more horizontal space.
+\begin{center}
+\small <<revenue_table>>
+\end{center}
+Revenue in USD thousands. Illustrative data.
+\end{landscape}
+
+\begin{sidewaystable}[p]
+\centering
+\begin{minipage}{\textheight}
+\section*{2. Sideways table on a portrait page}
+The PDF page stays portrait. This entire table block is rotated 90 degrees,
+including its title and explanatory text. Rotate the viewer to read it upright.
+\begin{center}
+\small <<revenue_table>>
+\end{center}
+Revenue in USD thousands. Illustrative data.
+\end{minipage}
+\end{sidewaystable}
+\end{document}

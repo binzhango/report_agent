@@ -1,0 +1,209 @@
+"""Build orchestration, validation, publication, and cleanup contracts."""
+
+from pathlib import Path
+
+import pytest
+
+from report_agent import ImageInput, RenderRequest, TextInput
+from report_agent.application.service import ReportRenderer
+from report_agent.application.validation import RenderValidator
+from report_agent.metadata.loader import MetadataLoader
+from report_agent.metadata.models import CompilerOptions
+from report_agent.models.results import CompileResult, Diagnostic
+from report_agent.presentation.styler import LatexPlaceholderStyler
+from report_agent.rendering.registry import RendererRegistry
+from report_agent.rendering.text import TextRenderer
+from report_agent.storage.artifacts import LocalArtifactStore
+from report_agent.storage.workspace import TemporaryWorkspaceManager
+from report_agent.templates.engine import JinjaTemplateEngine
+from report_agent.templates.repository import LocalTemplateRepository
+
+
+class RecordingCompiler:
+    def __init__(self, fail: bool = False) -> None:
+        self.calls = 0
+        self.source = ""
+        self.fail = fail
+
+    def compile(self, entrypoint: Path, options: CompilerOptions) -> CompileResult:
+        self.calls += 1
+        self.source = entrypoint.read_text()
+        assert (entrypoint.parent / "static.tex").read_text() == "Static resource"
+        log = entrypoint.with_suffix(".log")
+        log.write_text("Compiler transcript")
+        if self.fail:
+            return CompileResult(
+                None, (Diagnostic("compilation", "test_failure", "Broken TeX"),), log
+            )
+        pdf = entrypoint.with_suffix(".pdf")
+        pdf.write_bytes(b"%PDF-test")
+        return CompileResult(pdf, log_path=log)
+
+
+@pytest.fixture
+def build(tmp_path: Path):
+    root = tmp_path / "template"
+    root.mkdir()
+    (root / "main.tex").write_text("<<title>>\n<<period>>\n<<footer>>")
+    (root / "static.tex").write_text("Static resource")
+    metadata = {
+        "id": "test",
+        "inputs": {
+            "title": {"type": "text", "max_chars": 20},
+            "period": {"type": "text", "default": "Q3 & Q4"},
+            "footer": {"type": "text", "required": False},
+        },
+    }
+    compiler = RecordingCompiler()
+    engine = JinjaTemplateEngine()
+    workspaces = tmp_path / "workspaces"
+    renderer = ReportRenderer(
+        metadata_loader=MetadataLoader(),
+        templates=LocalTemplateRepository(),
+        validator=RenderValidator(engine),
+        renderers=RendererRegistry({"text": TextRenderer()}),
+        template_engine=engine,
+        compiler=compiler,
+        workspaces=TemporaryWorkspaceManager(workspaces),
+        artifacts=LocalArtifactStore(),
+        styler=LatexPlaceholderStyler(),
+    )
+    request = RenderRequest(
+        root,
+        metadata,
+        {"title": TextInput("Sales & costs")},
+        tmp_path / "out/report.pdf",
+    )
+    return renderer, request, compiler, workspaces
+
+
+def test_pipeline_applies_defaults_publishes_and_cleans_workspace(build) -> None:
+    renderer, request, compiler, workspaces = build
+    original = (request.template / "main.tex").read_text()
+    result = renderer.render(request)
+    assert result.pdf_path == request.output
+    assert result.pdf_path.read_bytes() == b"%PDF-test"
+    assert compiler.source == "Sales \\& costs\nQ3 \\& Q4\n"
+    assert all(path.is_file() for path in result.artifacts)
+    assert list(workspaces.iterdir()) == []
+    assert (request.template / "main.tex").read_text() == original
+
+
+@pytest.mark.parametrize(
+    "inputs, code",
+    [
+        ({}, "missing_input"),
+        ({"title": "raw string"}, "input_type"),
+        ({"title": TextInput("x" * 21)}, "text_length"),
+        ({"title": TextInput("Title"), "extra": TextInput("extra")}, "unknown_input"),
+    ],
+)
+def test_invalid_inputs_never_reach_compiler(build, inputs, code) -> None:
+    renderer, request, compiler, _ = build
+    request = RenderRequest(request.template, request.metadata, inputs, request.output)
+    result = renderer.render(request)
+    assert result.pdf_path is None
+    assert code in {item.code for item in result.diagnostics}
+    assert compiler.calls == 0
+    assert not request.output.exists()
+
+
+def test_placeholder_mismatch_fails_before_compilation(build) -> None:
+    renderer, request, compiler, _ = build
+    (request.template / "main.tex").write_text("<<undeclared>>")
+    result = renderer.render(request)
+    assert {item.code for item in result.diagnostics} == {
+        "undeclared_placeholder",
+        "unused_input",
+    }
+    assert compiler.calls == 0
+
+
+def test_missing_renderer_strategy_has_structured_error(build) -> None:
+    renderer, request, compiler, _ = build
+    request.metadata["inputs"]["title"] = {"type": "image"}
+    request = RenderRequest(
+        request.template,
+        request.metadata,
+        {"title": ImageInput(Path("logo.png"))},
+        request.output,
+    )
+    result = renderer.render(request)
+    assert result.diagnostics[0].code == "invalid_input"
+    assert "No renderer registered" in result.diagnostics[0].message
+    assert result.diagnostics[0].input_name == "title"
+    assert compiler.calls == 0
+
+
+def test_compile_failure_retains_diagnostics_and_previous_pdf(build) -> None:
+    renderer, request, compiler, workspaces = build
+    compiler.fail = True
+    request.output.parent.mkdir()
+    request.output.write_bytes(b"Previous report")
+    result = renderer.render(request)
+    assert result.pdf_path is None
+    assert result.diagnostics[0].code == "test_failure"
+    assert request.output.read_bytes() == b"Previous report"
+    assert {path.name for path in result.artifacts} == {
+        "main.tex",
+        "compile.log",
+        "static.tex",
+    }
+    assert all(path.is_file() for path in result.artifacts)
+    assert list(workspaces.iterdir()) == []
+
+
+def test_bad_text_cleans_workspace_and_identifies_input(build) -> None:
+    renderer, request, compiler, workspaces = build
+    request = RenderRequest(
+        request.template,
+        request.metadata,
+        {"title": TextInput("bad\x00")},
+        request.output,
+    )
+    result = renderer.render(request)
+    assert result.diagnostics[0].input_name == "title"
+    assert compiler.calls == 0
+    assert list(workspaces.iterdir()) == []
+
+
+def test_invalid_yaml_returns_structured_metadata_error(build, tmp_path: Path) -> None:
+    renderer, request, compiler, _ = build
+    invalid = tmp_path / "invalid.yaml"
+    invalid.write_text("inputs: [unterminated")
+    result = renderer.render(
+        RenderRequest(request.template, invalid, request.inputs, request.output)
+    )
+    assert result.pdf_path is None
+    assert result.diagnostics[0].stage == "metadata"
+    assert "Invalid YAML" in result.diagnostics[0].message
+    assert compiler.calls == 0
+
+
+def test_nested_entrypoint_is_retained_at_its_relative_path(build) -> None:
+    renderer, request, _, _ = build
+    section = request.template / "sections"
+    section.mkdir()
+    (request.template / "main.tex").rename(section / "main.tex")
+    (request.template / "static.tex").rename(section / "static.tex")
+    request.metadata["entrypoint"] = "sections/main.tex"
+    result = renderer.render(request)
+    assert result.pdf_path is not None, result.diagnostics
+    retained = request.output.parent / "report.artifacts"
+    assert (retained / "sections/main.tex").is_file()
+    assert (retained / "sections/static.tex").is_file()
+    assert not (retained / "main.tex").exists()
+
+
+def test_artifact_paths_cannot_overwrite_original_template(build) -> None:
+    renderer, request, _, _ = build
+    output = request.template.parent / "template.pdf"
+    renamed = request.template.with_name("template.artifacts")
+    request.template.rename(renamed)
+    source = (renamed / "main.tex").read_text()
+    result = renderer.render(
+        RenderRequest(renamed, request.metadata, request.inputs, output)
+    )
+    assert result.pdf_path is None
+    assert "overwrite template resources" in result.diagnostics[0].message
+    assert (renamed / "main.tex").read_text() == source
