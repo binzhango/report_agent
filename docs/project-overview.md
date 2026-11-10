@@ -128,14 +128,16 @@ The application composes these services; interfaces call it.
 2. Discover the entrypoint and non-hidden bundle files. Reject parent traversal
    and symlink resources. Generated `*.artifacts` directories are not staged.
 3. Validate placeholder declarations, supplied names/types, defaults, text limits,
-   and availability of the selected renderer backend.
+   and availability of every declared renderer backend, including omitted inputs.
 4. Enter an isolated workspace and copy template resources.
-5. Resolve defaults and optional values, render each input, and apply its style.
+5. Resolve defaults and optional values, render each visible input, and apply its
+   style. Context-only (`visible: false`) inputs are not converted or inserted.
 6. Expand Jinja once, validate required package declarations, and write the complete
    `.tex` source. Tables carry source markers for overflow attribution.
 7. Compile with a bounded texres process. On cancellation/timeout, stop its process
    group where supported. Inspect exit status, PDF presence/signature, and warnings.
-   Attributed table width overflow is an error and prevents PDF publication.
+   Attributed table width overflow above `compiler.table_overflow_tolerance_pt`
+   (default 2pt) is an error and prevents PDF publication; smaller values warn.
 8. Retain expanded source at its original bundle-relative path, plus supported
    resources, graphics, and logs. Refuse artifact paths that overwrite source resources.
 9. Publish the final PDF only on success, then clean the workspace.

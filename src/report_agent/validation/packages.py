@@ -7,7 +7,7 @@ from report_agent.models.template import TemplateBundle
 
 _COMMAND = re.compile(
     r"\\(usepackage|RequirePackage|documentclass|LoadClass|input|include)\s*"
-    r"(?:\[[^\]]*\]\s*)?\{([^{}]+)\}"
+    r"(?:\[([^\]]*)\]\s*)?\{([^{}]+)\}"
 )
 
 
@@ -35,7 +35,7 @@ class TemplatePackageScanner:
             if current.resolve() in visited:
                 continue
             visited.add(current.resolve())
-            for command, names in _COMMAND.findall(_source(source)):
+            for command, options, names in _COMMAND.findall(_source(source)):
                 suffix = (
                     ".sty"
                     if command in {"usepackage", "RequirePackage"}
@@ -49,6 +49,10 @@ class TemplatePackageScanner:
                         continue
                     if suffix == ".sty":
                         packages.add(name)
+                        if name == "xcolor" and "table" in {
+                            option.strip() for option in options.split(",")
+                        }:
+                            packages.add("colortbl")
                     relative = Path(name)
                     if not relative.suffix:
                         relative = relative.with_suffix(suffix)

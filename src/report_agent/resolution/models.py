@@ -31,6 +31,7 @@ class TableSummary:
     column_count: int
     columns: tuple[ColumnSummary, ...]
     columns_omitted: int
+    head_rows: tuple[tuple[str | int | float | bool | None, ...], ...] = ()
 
 
 @dataclass(frozen=True)

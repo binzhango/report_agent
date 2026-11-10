@@ -15,6 +15,7 @@ class MetadataModel(BaseModel):
 
 class CompilerOptions(MetadataModel):
     engine: Literal["pdflatex", "xelatex", "lualatex"] = "xelatex"
+    table_overflow_tolerance_pt: float = Field(default=2.0, ge=0, allow_inf_nan=False)
 
 
 class InputDefinition(MetadataModel):
@@ -22,6 +23,7 @@ class InputDefinition(MetadataModel):
 
     type: Literal["text", "image", "graph", "table"]
     required: bool = True
+    visible: bool = True
     default: str | None = None
     max_chars: int | None = Field(default=None, gt=0)
     width: str | None = None
@@ -34,6 +36,7 @@ class InputDefinition(MetadataModel):
     source: Literal["user", "agent"] = "user"
     prompt: str | None = None
     uses: tuple[str, ...] = ()
+    summary_head_rows: int = Field(default=0, ge=0, le=20)
 
     @model_validator(mode="after")
     def compatible_options(self) -> "InputDefinition":
@@ -46,10 +49,14 @@ class InputDefinition(MetadataModel):
                 raise ValueError(
                     "Agent sources require a text input and a non-empty prompt."
                 )
+            if self.max_chars is None:
+                raise ValueError("Agent sources require max_chars.")
         elif self.prompt is not None or self.uses:
             raise ValueError("prompt and uses require source: agent.")
         if len(set(self.uses)) != len(self.uses):
             raise ValueError("uses must contain unique table input names.")
+        if self.summary_head_rows and self.type != "table":
+            raise ValueError("summary_head_rows is supported only for tables.")
         if self.type != "text" and (
             self.default is not None or self.max_chars is not None
         ):

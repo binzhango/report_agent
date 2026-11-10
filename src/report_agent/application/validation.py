@@ -47,7 +47,17 @@ class RenderValidator:
                 name,
             )
         for name in sorted(metadata.inputs.keys() - variables):
-            issue("unused_input", "Declared input has no template placeholder.", name)
+            if metadata.inputs[name].visible:
+                issue(
+                    "unused_input", "Declared input has no template placeholder.", name
+                )
+        for name in sorted(variables & metadata.inputs.keys()):
+            if not metadata.inputs[name].visible:
+                issue(
+                    "hidden_placeholder",
+                    "Context-only input cannot be displayed.",
+                    name,
+                )
         for name in inputs.keys() - metadata.inputs.keys():
             issue("unknown_input", "Runtime input is not declared in metadata.", name)
         types = {
@@ -57,15 +67,15 @@ class RenderValidator:
             "table": (TableInput,),
         }
         for name, definition in metadata.inputs.items():
+            try:
+                self._renderers.get(definition.type, definition.backend)
+            except ValueError as exc:
+                issue("unsupported_backend", str(exc), name)
             if name not in inputs:
                 if definition.required and definition.default is None:
                     issue("missing_input", "Required input was not supplied.", name)
                 continue
             value = inputs[name]
-            try:
-                self._renderers.get(definition.type, definition.backend)
-            except ValueError as exc:
-                issue("unsupported_backend", str(exc), name)
             if not isinstance(value, types[definition.type]):
                 issue("input_type", f"Expected a typed {definition.type} input.", name)
             elif isinstance(value, TextInput):

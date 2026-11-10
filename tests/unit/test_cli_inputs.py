@@ -50,3 +50,37 @@ def test_input_descriptors_reject_ambiguous_values(tmp_path: Path) -> None:
     )
     with pytest.raises(ValueError, match="no path"):
         InputFileLoader().load(path)
+
+
+@pytest.mark.parametrize("kind", ["table", "image", "graph"])
+@pytest.mark.parametrize("style", ["absolute", "traversal", "symlink"])
+def test_restricted_loader_rejects_assets_outside_root_before_reading(
+    tmp_path: Path, kind: str, style: str
+) -> None:
+    root = tmp_path / "allowed"
+    root.mkdir()
+    outside = tmp_path / "private.csv"
+    outside.write_text("private\nsecret\n")
+    path = outside if style == "absolute" else root / "../private.csv"
+    if style == "symlink":
+        path = root / "link.csv"
+        path.symlink_to(outside)
+    manifest = root / "inputs.json"
+    manifest.write_text(
+        json.dumps({"inputs": {"asset": {"type": kind, "path": str(path)}}})
+    )
+    loader = InputFileLoader(base_directory=root)
+    with pytest.raises(ValueError, match="outside base directory"):
+        loader.load(manifest)
+    with pytest.raises(ValueError, match="outside base directory"):
+        loader.from_path(kind, path)
+
+
+def test_restricted_loader_accepts_inside_assets(tmp_path: Path) -> None:
+    (tmp_path / "data.csv").write_text("value\n1\n")
+    manifest = tmp_path / "inputs.json"
+    manifest.write_text(
+        json.dumps({"inputs": {"data": {"type": "table", "path": "data.csv"}}})
+    )
+    result = InputFileLoader(base_directory=tmp_path).load(manifest)
+    assert result["data"].data.iloc[0, 0] == 1

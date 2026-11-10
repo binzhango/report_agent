@@ -5,7 +5,9 @@ import re
 from report_agent.models.results import Diagnostic
 
 
-def compile_warnings(details: str, source: str) -> tuple[Diagnostic, ...]:
+def compile_warnings(
+    details: str, source: str, *, table_overflow_tolerance_pt: float = 2.0
+) -> tuple[Diagnostic, ...]:
     spans = []
     opened = {}
     for number, line in enumerate(source.splitlines(), 1):
@@ -32,9 +34,19 @@ def compile_warnings(details: str, source: str) -> tuple[Diagnostic, ...]:
                 if start <= finish and end >= begin
             }
         if names:
+            width = re.search(r"\((\d+(?:\.\d+)?)pt too wide\)", line)
+            severity = (
+                "warning"
+                if width and float(width[1]) <= table_overflow_tolerance_pt
+                else "error"
+            )
             diagnostics.extend(
                 Diagnostic(
-                    "compilation", "table_overflow", line.strip(), input_name=name
+                    "compilation",
+                    "table_overflow",
+                    line.strip(),
+                    input_name=name,
+                    severity=severity,
                 )
                 for name in sorted(names)
             )

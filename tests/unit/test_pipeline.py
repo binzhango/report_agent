@@ -176,6 +176,7 @@ def test_missing_package_is_reported_per_input_before_compiling(build) -> None:
     assert result.diagnostics[0].code == "missing_package"
     assert result.diagnostics[0].input_name == "title"
     assert "xcolor" in result.diagnostics[0].message
+    assert "provided_packages" in result.diagnostics[0].message
     assert compiler.calls == 0
 
 
@@ -187,7 +188,7 @@ def test_external_package_manifest_is_honored(build) -> None:
 
 
 def test_unexpected_content_exception_returns_input_diagnostic(
-    build, monkeypatch
+    build, monkeypatch, caplog
 ) -> None:
     renderer, request, compiler, _ = build
 
@@ -200,6 +201,9 @@ def test_unexpected_content_exception_returns_input_diagnostic(
     assert result.diagnostics[0].code == "internal_error"
     assert result.diagnostics[0].input_name == "title"
     assert compiler.calls == 0
+    assert any(
+        record.exc_info and "title" in record.getMessage() for record in caplog.records
+    )
 
 
 def test_unexpected_compiler_exception_returns_diagnostic(build, monkeypatch) -> None:
@@ -212,6 +216,25 @@ def test_unexpected_compiler_exception_returns_diagnostic(build, monkeypatch) ->
     result = renderer.render(request)
     assert result.diagnostics[0].code == "internal_error"
     assert result.diagnostics[0].stage == "compilation"
+
+
+def test_omitted_optional_backend_is_checked_before_compilation(build) -> None:
+    renderer, request, compiler, _ = build
+    request.metadata["inputs"]["footer"].update(type="table", backend="great_tables")
+    result = renderer.render(request)
+    assert any(
+        issue.code == "unsupported_backend" and issue.input_name == "footer"
+        for issue in result.diagnostics
+    )
+    assert compiler.calls == 0
+
+
+def test_hidden_inputs_cannot_appear_in_template(build) -> None:
+    renderer, request, compiler, _ = build
+    request.metadata["inputs"]["title"]["visible"] = False
+    result = renderer.render(request)
+    assert any(issue.code == "hidden_placeholder" for issue in result.diagnostics)
+    assert compiler.calls == 0
 
 
 def test_invalid_yaml_returns_structured_metadata_error(build, tmp_path: Path) -> None:

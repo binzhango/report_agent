@@ -1,5 +1,6 @@
 """Resolve tables before dependent agent text, then supply normal render inputs."""
 
+import logging
 from collections.abc import Mapping
 from math import isfinite
 
@@ -15,6 +16,9 @@ from report_agent.resolution.models import (
     ResolutionResult,
     TableSummary,
 )
+from report_agent.validation.text import text_issues
+
+logger = logging.getLogger(__name__)
 
 
 class ContentResolver:
@@ -78,11 +82,17 @@ class ContentResolver:
                         raise ValueError(
                             f"Agent input requires resolved table {dependency!r}."
                         )
-                    tables[dependency] = self._summary(value.data)
+                    tables[dependency] = self._summary(
+                        value.data, metadata.inputs[dependency].summary_head_rows
+                    )
                 text = self._text_generator.generate(definition.prompt, tables)
                 if not isinstance(text, str):
                     raise ValueError("Agent text generator must return plain text.")
-                resolved[name] = TextInput(text)
+                value = TextInput(text)
+                issues = text_issues(value, definition)
+                if issues:
+                    raise ValueError("; ".join(message for _, message in issues))
+                resolved[name] = value
             return ResolutionResult(resolved)
         except Exception as exc:
             code = (
@@ -90,6 +100,10 @@ class ContentResolver:
                 if isinstance(exc, (ValueError, OSError))
                 else "internal_error"
             )
+            if code == "internal_error":
+                logger.exception(
+                    "Unexpected content resolution failure for input %s", name
+                )
             return ResolutionResult(
                 resolved,
                 (
@@ -102,7 +116,7 @@ class ContentResolver:
                 ),
             )
 
-    def _summary(self, frame: pd.DataFrame) -> TableSummary:
+    def _summary(self, frame: pd.DataFrame, head_rows: int) -> TableSummary:
         columns = []
         for index in range(min(frame.shape[1], self._summary_max_columns)):
             series = frame.iloc[:, index]
@@ -127,4 +141,21 @@ class ContentResolver:
             frame.shape[1],
             tuple(columns),
             max(0, frame.shape[1] - len(columns)),
+            tuple(
+                tuple(self._summary_cell(value) for value in row)
+                for row in frame.iloc[:head_rows, : len(columns)].itertuples(
+                    index=False, name=None
+                )
+            ),
         )
+
+    @staticmethod
+    def _summary_cell(value: object) -> str | int | float | bool | None:
+        if value is None or value is pd.NA or value is pd.NaT:
+            return None
+        value = value.item() if hasattr(value, "item") else value
+        if isinstance(value, bool):
+            return value
+        if isinstance(value, (int, float)):
+            return value if isfinite(value) else None
+        return str(value)[:200]

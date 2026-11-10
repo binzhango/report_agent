@@ -101,7 +101,11 @@ class TexresCompiler:
         with pdf.open("rb") as handle:
             if handle.read(5) != b"%PDF-":
                 return failure("invalid_pdf", "Compiler output is not a PDF.")
-        warnings = compile_warnings(details, entrypoint.read_text(encoding="utf-8"))
+        warnings = compile_warnings(
+            details,
+            entrypoint.read_text(encoding="utf-8"),
+            table_overflow_tolerance_pt=options.table_overflow_tolerance_pt,
+        )
         return CompileResult(pdf, warnings, log if log.is_file() else transcript)
 
     @staticmethod

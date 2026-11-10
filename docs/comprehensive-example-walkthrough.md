@@ -441,7 +441,8 @@ bundle files. It rejects symlink resources and parent-traversing entrypoints.
 partials, and checks:
 
 - Every referenced input is declared in metadata.
-- Every declared input has a template placeholder.
+- Every visible declared input has a template placeholder; hidden context inputs
+  have none.
 - Runtime input names are declared.
 - Required values are present, unless a default is available.
 - Runtime wrappers match the declared types.

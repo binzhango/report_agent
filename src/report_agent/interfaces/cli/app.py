@@ -61,10 +61,16 @@ def render_report(
             help="JSON/YAML content file; explicit flags override its values.",
         ),
     ] = None,
+    input_root: Annotated[
+        Path | None,
+        typer.Option(
+            "--input-root", help="Restrict all input asset paths to this directory."
+        ),
+    ] = None,
 ) -> None:
     """Render using text, file-backed assets, and JSON/YAML input manifests."""
-    loader = InputFileLoader()
     try:
+        loader = InputFileLoader(base_directory=input_root)
         inputs = loader.load(inputs_file) if inputs_file is not None else {}
         explicit = set()
         for kind, items in [

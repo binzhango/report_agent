@@ -1,5 +1,6 @@
 """Public report facade; collaborators own individual rendering stages."""
 
+import logging
 from collections.abc import Mapping
 from dataclasses import replace
 from pathlib import Path
@@ -27,6 +28,8 @@ from report_agent.storage.workspace import WorkspaceManager
 from report_agent.templates.engine import TemplateEngine
 from report_agent.templates.repository import TemplateRepository
 from report_agent.validation.packages import TemplatePackageScanner
+
+logger = logging.getLogger(__name__)
 
 _RETAINED_EXTENSIONS = {
     ".tex",
@@ -103,7 +106,8 @@ class ReportRenderer:
                     Diagnostic(
                         stage,
                         "missing_package",
-                        f"Input requires package {package!r}; load it in the template.",
+                        f"Input requires package {package!r}; load it in the template "
+                        "or declare it in provided_packages if loaded indirectly.",
                         input_name=name,
                     )
                     for name, fragment in content.items()
@@ -117,6 +121,10 @@ class ReportRenderer:
                 stage = "publication"
                 return self._publish(bundle, staged, content, compiled, output)
         except _ContentError as exc:
+            if not isinstance(exc.cause, (ValueError, OSError)):
+                logger.exception(
+                    "Unexpected content failure for input %s", exc.input_name
+                )
             code = (
                 "invalid_input"
                 if isinstance(exc.cause, ValueError)
@@ -149,6 +157,7 @@ class ReportRenderer:
                 ),
             )
         except Exception as exc:
+            logger.exception("Unexpected report failure during %s", stage)
             return RenderResult(
                 None,
                 (Diagnostic(stage, "internal_error", f"{type(exc).__name__}: {exc}"),),
@@ -175,6 +184,8 @@ class ReportRenderer:
     ) -> dict[str, RenderedContent]:
         content = {}
         for name, definition in metadata.inputs.items():
+            if not definition.visible:
+                continue
             try:
                 value = inputs.get(name)
                 if value is None and definition.default is not None:

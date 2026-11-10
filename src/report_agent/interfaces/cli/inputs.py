@@ -40,6 +40,15 @@ class InputFile(BaseModel):
 
 
 class InputFileLoader:
+    def __init__(self, *, base_directory: Path | None = None) -> None:
+        self._base_directory = (
+            base_directory.expanduser().resolve()
+            if base_directory is not None
+            else None
+        )
+        if self._base_directory is not None and not self._base_directory.is_dir():
+            raise ValueError("Input base directory must be an existing directory.")
+
     def load(self, path: Path) -> dict[str, ContentInput]:
         parser = (
             JsonMetadataParser()
@@ -67,8 +76,12 @@ class InputFileLoader:
                     raise ValueError(f"Input {name!r}: {exc}") from exc
         return result
 
-    @staticmethod
-    def from_path(kind: str, path: Path) -> ContentInput:
+    def from_path(self, kind: str, path: Path) -> ContentInput:
+        path = path.expanduser().resolve()
+        if self._base_directory is not None and not path.is_relative_to(
+            self._base_directory
+        ):
+            raise ValueError(f"Input path is outside base directory: {path}")
         if kind == "image":
             return ImageInput(path)
         if kind == "graph":

@@ -83,10 +83,10 @@ class StylerTableRenderer:
                 cmap="RdBu" if preset == "heatmap_diverging" else "Blues",
                 **kwargs,
             )
-            packages.add("xcolor")
+            packages.update({"xcolor", "colortbl"})
         elif preset == "comparison" and len(numeric):
             style = style.highlight_max(subset=numeric, axis=0, color="#dcece8")
-            packages.add("xcolor")
+            packages.update({"xcolor", "colortbl"})
         if preset != "financial" and (
             not frame.index.is_unique or not frame.columns.is_unique
         ):

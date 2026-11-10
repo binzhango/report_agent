@@ -14,6 +14,8 @@ class DataSource(Protocol):
 
         Implementations must also use read-only credentials/transactions and
         timeouts. A SELECT-looking string alone is not a security boundary.
+        Apply a server-side result bound before fetching, for example a safely
+        constructed LIMIT row_limit + 1, so the resolver can detect excess rows.
         """
         ...
 

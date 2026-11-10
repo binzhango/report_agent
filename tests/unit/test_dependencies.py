@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 
 from report_agent.compilation.diagnostics import compile_warnings
-from report_agent.metadata.models import InputDefinition
+from report_agent.metadata.models import CompilerOptions, InputDefinition
 from report_agent.models.template import TemplateBundle
 from report_agent.rendering.registry import RendererRegistry
 from report_agent.rendering.text import TextRenderer
@@ -25,7 +25,32 @@ def test_package_scanner_follows_local_class_style_and_inputs(tmp_path: Path) ->
     loaded = TemplatePackageScanner().loaded(
         TemplateBundle(tmp_path, tmp_path / "main.tex"), source
     )
-    assert loaded == {"xcolor", "graphicx", "booktabs", "custom", "multirow"}
+    assert loaded == {
+        "xcolor",
+        "colortbl",
+        "graphicx",
+        "booktabs",
+        "custom",
+        "multirow",
+    }
+
+
+@pytest.mark.parametrize(
+    "declaration, expected",
+    [
+        (r"\usepackage{xcolor}", {"xcolor"}),
+        (r"\RequirePackage[ dvipsnames, table ]{xcolor}", {"xcolor", "colortbl"}),
+        (r"\usepackage{colortbl}", {"colortbl"}),
+        (r"\usepackage[notable]{xcolor}", {"xcolor"}),
+    ],
+)
+def test_cell_color_dependency_requires_table_option_or_explicit_package(
+    tmp_path: Path, declaration: str, expected: set[str]
+) -> None:
+    loaded = TemplatePackageScanner().loaded(
+        TemplateBundle(tmp_path, tmp_path / "main.tex"), declaration
+    )
+    assert loaded == expected
 
 
 def test_registry_separates_table_backends() -> None:
@@ -54,3 +79,30 @@ def test_table_overflow_is_promoted_but_other_warnings_are_retained() -> None:
     assert result[0].code == "table_overflow" and result[0].severity == "error"
     assert result[0].input_name == "sales"
     assert result[1].severity == "warning"
+
+
+@pytest.mark.parametrize(
+    "width, tolerance, severity",
+    [
+        ("0.4", 2, "warning"),
+        ("2", 2, "warning"),
+        ("2.01", 2, "error"),
+        ("0.4", 0, "error"),
+        ("4.5", 5, "warning"),
+    ],
+)
+def test_table_overflow_tolerance(width, tolerance, severity) -> None:
+    source = "% REPORT_AGENT_TABLE_BEGIN sales\nbody\n% REPORT_AGENT_TABLE_END sales"
+    result = compile_warnings(
+        rf"Overfull \hbox ({width}pt too wide) in alignment at lines 1--3",
+        source,
+        table_overflow_tolerance_pt=tolerance,
+    )
+    assert result[0].code == "table_overflow"
+    assert result[0].severity == severity
+
+
+@pytest.mark.parametrize("tolerance", [-1, float("inf"), float("nan")])
+def test_invalid_overflow_tolerance_is_rejected(tolerance) -> None:
+    with pytest.raises(ValueError):
+        CompilerOptions(table_overflow_tolerance_pt=tolerance)

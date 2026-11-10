@@ -58,6 +58,8 @@ The CLI also accepts `--table name=data.csv`, `--image name=logo.png`,
 `--graph name=trend.pdf`, and `--inputs content.json` or `content.yaml`.
 See the [input manifest and review changes](docs/review-hardening.md). For Parquet
 tables, install the optional extra with `uv sync --extra parquet`.
+For agent-generated manifests, set `--input-root path/to/allowed-assets` to
+restrict referenced asset paths (including explicit file flags) to that directory.
 
 Use `template.yaml` for the equivalent YAML metadata. Python callers may pass
 a mapping or `TemplateMetadata` directly instead of a metadata path.
@@ -131,7 +133,10 @@ adapters, automatic wide/landscape layouts, and Great Tables remain future work.
 The optional [content resolver](docs/content-resolution.md) provides interfaces
 for application-owned data sources and text generators, without live database or
 model clients. Templates are checked for required packages before compilation,
-and attributed table overflow fails the build rather than publishing a clipped PDF.
+and attributed table overflow above `compiler.table_overflow_tolerance_pt`
+(default 2pt) fails the build. Smaller overflows remain warnings.
+Context-only tables can use `visible: false`. Agent text requires `max_chars`;
+opt-in `summary_head_rows` provides bounded row samples for grounded summaries.
 
 User and agent text is plain text only. The pipeline escapes LaTeX special
 characters, and template/metadata presentation controls formatting. Markdown and raw

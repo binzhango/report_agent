@@ -170,7 +170,9 @@ cell formatting and heatmap rules remain in table metadata such as `preset`.
 - With no style (or an empty style object), rendering retains the previous output.
 
 The template must load `xcolor` when using colors/boxes. It must also load the
-packages required by its content adapters. Before compilation, fragment requirements
+packages required by its content adapters. Colored table cells require `colortbl`,
+supplied explicitly or via `\usepackage[table]{xcolor}`. Before compilation,
+fragment requirements
 are checked against literal package declarations and `provided_packages` metadata.
 They are not automatically injected into the preamble. See the
 [package declaration contract](review-hardening.md#package-declarations) for scanner limits.
