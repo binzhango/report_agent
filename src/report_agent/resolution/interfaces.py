@@ -1,11 +1,10 @@
 """Adapters must enforce SQL policy; this package provides no SQL/LLM client."""
 
-from collections.abc import Mapping
 from typing import Protocol
 
 from pandas import DataFrame
 
-from report_agent.resolution.models import QuerySource, TableSummary
+from report_agent.resolution.models import GenerationRequest, QuerySource
 
 
 class DataSource(Protocol):
@@ -21,6 +20,9 @@ class DataSource(Protocol):
 
 
 class AgentTextGenerator(Protocol):
-    def generate(self, prompt: str, tables: Mapping[str, TableSummary]) -> str:
-        """Produce plain text using only the supplied, untrusted table summaries."""
+    def generate(self, request: GenerationRequest) -> str:
+        """Produce plain text within max_chars, using untrusted table summaries.
+
+        On a length retry, retry_feedback explains the previous violation.
+        """
         ...

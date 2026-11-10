@@ -42,6 +42,24 @@ def test_package_scanner_follows_local_class_style_and_inputs(tmp_path: Path) ->
         (r"\RequirePackage[ dvipsnames, table ]{xcolor}", {"xcolor", "colortbl"}),
         (r"\usepackage{colortbl}", {"colortbl"}),
         (r"\usepackage[notable]{xcolor}", {"xcolor"}),
+        (
+            r"\PassOptionsToPackage{table}{xcolor}\usepackage{xcolor}",
+            {"xcolor", "colortbl"},
+        ),
+        (r"\documentclass[table]{article}\usepackage{xcolor}", {"xcolor", "colortbl"}),
+        (r"\documentclass[table]{article}", set()),
+        (r"\PassOptionsToPackage{table}{other}\usepackage{xcolor}", {"xcolor"}),
+        (
+            "% "
+            + r"\PassOptionsToPackage{table}{xcolor}"
+            + "\n"
+            + r"\usepackage{xcolor}",
+            {"xcolor"},
+        ),
+        (
+            r"\begin{verbatim}\PassOptionsToPackage{table}{xcolor}\end{verbatim}\usepackage{xcolor}",
+            {"xcolor"},
+        ),
     ],
 )
 def test_cell_color_dependency_requires_table_option_or_explicit_package(
@@ -51,6 +69,16 @@ def test_cell_color_dependency_requires_table_option_or_explicit_package(
         TemplateBundle(tmp_path, tmp_path / "main.tex"), declaration
     )
     assert loaded == expected
+
+
+def test_xcolor_options_propagate_across_local_class_and_input_files(tmp_path) -> None:
+    (tmp_path / "theme.cls").write_text(r"\LoadClass{article}\RequirePackage{xcolor}")
+    (tmp_path / "options.tex").write_text(r"\PassOptionsToPackage{table}{xcolor}")
+    loaded = TemplatePackageScanner().loaded(
+        TemplateBundle(tmp_path, tmp_path / "main.tex"),
+        r"\input{options}\documentclass{theme}",
+    )
+    assert loaded == {"xcolor", "colortbl"}
 
 
 def test_registry_separates_table_backends() -> None:

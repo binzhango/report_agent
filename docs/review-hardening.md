@@ -13,6 +13,9 @@ of optional data/agent preparation.
 | Wide tables silently overflow | Generated table spans are marked in source comments. Attributed overfull hboxes produce `table_overflow`: warning up to `compiler.table_overflow_tolerance_pt` (default 2pt), error above it. Failed builds preserve previous PDFs and retain logs/source. |
 | Colored-cell dependencies | Heatmaps/comparison tables require `colortbl` as well as `xcolor`. The scanner treats `\usepackage[table]{xcolor}` as supplying both; plain `xcolor` supplies only itself. |
 | Agent-only context | `visible: false` inputs are resolved and validated but need no placeholder and are never rendered. Agent inputs require explicit `max_chars`; optional `summary_head_rows` adds bounded category/time-series context. |
+| Generation constraints | `GenerationRequest` supplies `max_chars` to the generator; a length violation permits one retry with feedback before hard failure. |
+| Raw context size | Opt-in raw rows share an 8,192-character JSON budget across all tables in a generation request. Trailing rows are dropped and omission counts are exposed. |
+| Dead hidden declarations | Metadata rejects hidden inputs that no agent `uses` references. |
 | Implicit rounding | An omitted precision preserves numeric display precision; explicit precision rounds floating values. Integer counts remain integer displays. |
 | pdfLaTeX text limitations | Escape `<`, `>`, and `|` with text commands, including in OT1 templates. Keep supported pdfLaTeX examples; recommend XeLaTeX/LuaLaTeX and appropriate fonts for broader Unicode coverage. |
 | Ambiguous stages | Separate metadata, template loading, output validation, input validation, content rendering, template rendering, package validation, compilation, and publication stages. |
@@ -25,6 +28,10 @@ The scanner follows literal `\usepackage`, `\RequirePackage`, `\documentclass`,
 Comments and common verbatim/listing bodies are ignored.
 Options are inspected: `xcolor` with the `table` option supplies `colortbl` for
 generated cell colors. Loading `colortbl` explicitly also satisfies that requirement.
+The scanner also recognizes `\PassOptionsToPackage{table}{xcolor}` and global
+`\documentclass[table]{...}` options when `xcolor` is loaded in the scanned bundle.
+These options alone do not imply that `xcolor` itself was loaded. External
+class/style dependencies still use `provided_packages` when they cannot be scanned.
 
 For a package supplied indirectly by an external class/style or macro-generated
 loading logic, the trusted template author can declare:

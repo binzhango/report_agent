@@ -107,6 +107,7 @@ class TemplateMetadata(MetadataModel):
 
     @model_validator(mode="after")
     def validate_dependencies(self) -> "TemplateMetadata":
+        used = set()
         for name, definition in self.inputs.items():
             for dependency in definition.uses:
                 if (
@@ -117,6 +118,16 @@ class TemplateMetadata(MetadataModel):
                         f"{name}: uses must refer to declared table inputs "
                         f"({dependency!r})."
                     )
+                used.add(dependency)
+        unused = sorted(
+            name
+            for name, definition in self.inputs.items()
+            if not definition.visible and name not in used
+        )
+        if unused:
+            raise ValueError(
+                f"Hidden inputs must be referenced by agent uses: {unused}"
+            )
         return self
 
     @field_validator("inputs")

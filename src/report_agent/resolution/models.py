@@ -32,6 +32,15 @@ class TableSummary:
     columns: tuple[ColumnSummary, ...]
     columns_omitted: int
     head_rows: tuple[tuple[str | int | float | bool | None, ...], ...] = ()
+    head_rows_omitted: int = 0
+
+
+@dataclass(frozen=True)
+class GenerationRequest:
+    prompt: str
+    tables: Mapping[str, TableSummary]
+    max_chars: int
+    retry_feedback: str | None = None
 
 
 @dataclass(frozen=True)

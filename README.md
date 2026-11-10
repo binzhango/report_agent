@@ -137,6 +137,9 @@ and attributed table overflow above `compiler.table_overflow_tolerance_pt`
 (default 2pt) fails the build. Smaller overflows remain warnings.
 Context-only tables can use `visible: false`. Agent text requires `max_chars`;
 opt-in `summary_head_rows` provides bounded row samples for grounded summaries.
+Hidden inputs must appear in an agent's `uses`. Generators receive a
+`GenerationRequest` with the length limit and one retry on an overlong output.
+Raw row samples share an 8,192-character budget per generation request.
 
 User and agent text is plain text only. The pipeline escapes LaTeX special
 characters, and template/metadata presentation controls formatting. Markdown and raw

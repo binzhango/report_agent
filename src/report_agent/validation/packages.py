@@ -9,6 +9,7 @@ _COMMAND = re.compile(
     r"\\(usepackage|RequirePackage|documentclass|LoadClass|input|include)\s*"
     r"(?:\[([^\]]*)\]\s*)?\{([^{}]+)\}"
 )
+_PASS_OPTIONS = re.compile(r"\\PassOptionsToPackage\s*\{([^{}]+)\}\s*\{([^{}]+)\}")
 
 
 def _source(text: str) -> str:
@@ -28,6 +29,8 @@ def _source(text: str) -> str:
 class TemplatePackageScanner:
     def loaded(self, bundle: TemplateBundle, expanded_source: str) -> frozenset[str]:
         packages: set[str] = set()
+        xcolor_options: set[str] = set()
+        class_options: set[str] = set()
         visited: set[Path] = set()
         pending = [(bundle.entrypoint, expanded_source)]
         while pending:
@@ -35,7 +38,17 @@ class TemplatePackageScanner:
             if current.resolve() in visited:
                 continue
             visited.add(current.resolve())
-            for command, options, names in _COMMAND.findall(_source(source)):
+            source = _source(source)
+            for options, names in _PASS_OPTIONS.findall(source):
+                if "xcolor" in {name.strip() for name in names.split(",")}:
+                    xcolor_options.update(
+                        option.strip() for option in options.split(",")
+                    )
+            for command, options, names in _COMMAND.findall(source):
+                if command in {"documentclass", "LoadClass"}:
+                    class_options.update(
+                        option.strip() for option in options.split(",")
+                    )
                 suffix = (
                     ".sty"
                     if command in {"usepackage", "RequirePackage"}
@@ -49,10 +62,10 @@ class TemplatePackageScanner:
                         continue
                     if suffix == ".sty":
                         packages.add(name)
-                        if name == "xcolor" and "table" in {
-                            option.strip() for option in options.split(",")
-                        }:
-                            packages.add("colortbl")
+                        if name == "xcolor":
+                            xcolor_options.update(
+                                option.strip() for option in options.split(",")
+                            )
                     relative = Path(name)
                     if not relative.suffix:
                         relative = relative.with_suffix(suffix)
@@ -64,4 +77,6 @@ class TemplatePackageScanner:
                         ):
                             pending.append((path, path.read_text(encoding="utf-8")))
                             break
+        if "xcolor" in packages and "table" in (xcolor_options | class_options):
+            packages.add("colortbl")
         return frozenset(packages)

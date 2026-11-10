@@ -152,10 +152,37 @@ def test_ot1_special_characters_remain_literal(tmp_path: Path) -> None:
     assert "Less < greater > pipe |" in text
 
 
+@pytest.mark.parametrize(
+    "preamble",
+    [
+        r"\PassOptionsToPackage{table}{xcolor}\documentclass{article}\usepackage{xcolor}",
+        r"\documentclass[table]{article}\usepackage{xcolor}",
+    ],
+)
+def test_global_xcolor_options_pass_preflight_and_compile(tmp_path, preamble):
+    template = tmp_path / "template"
+    template.mkdir()
+    (template / "main.tex").write_text(
+        preamble + r"\usepackage{booktabs}\begin{document}<<sales>>\end{document}"
+    )
+    result = create_renderer().render(
+        RenderRequest(
+            template,
+            {
+                "id": "global_options",
+                "inputs": {"sales": {"type": "table", "preset": "comparison"}},
+            },
+            {"sales": TableInput(pd.DataFrame({"Revenue": [123, 456]}))},
+            tmp_path / "global-options.pdf",
+        )
+    )
+    assert result.pdf_path is not None, result.diagnostics
+
+
 def test_generated_text_is_escaped_before_compilation(tmp_path: Path) -> None:
     class Generator:
-        def generate(self, prompt, tables):
-            assert tables["sales"].row_count == 1
+        def generate(self, request):
+            assert request.tables["sales"].row_count == 1
             return r"Growth 12% & \input{not-a-file}"
 
     template = tmp_path / "template"
@@ -204,8 +231,8 @@ def test_context_only_query_is_summarized_but_never_rendered(tmp_path: Path) -> 
             )
 
     class Generator:
-        def generate(self, prompt, tables):
-            assert tables["raw"].head_rows == (("PRIVATE_CONTEXT_ONLY", 123),)
+        def generate(self, request):
+            assert request.tables["raw"].head_rows == (("PRIVATE_CONTEXT_ONLY", 123),)
             return "Reviewed result."
 
     template = tmp_path / "template"

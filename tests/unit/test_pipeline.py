@@ -231,7 +231,10 @@ def test_omitted_optional_backend_is_checked_before_compilation(build) -> None:
 
 def test_hidden_inputs_cannot_appear_in_template(build) -> None:
     renderer, request, compiler, _ = build
-    request.metadata["inputs"]["title"]["visible"] = False
+    request.metadata["inputs"]["footer"].update(type="table", visible=False)
+    request.metadata["inputs"]["title"].update(
+        source="agent", prompt="Summarize footer", uses=["footer"]
+    )
     result = renderer.render(request)
     assert any(issue.code == "hidden_placeholder" for issue in result.diagnostics)
     assert compiler.calls == 0

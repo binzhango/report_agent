@@ -1,17 +1,20 @@
 """Resolve tables before dependent agent text, then supply normal render inputs."""
 
+import json
 import logging
 from collections.abc import Mapping
+from dataclasses import replace
 from math import isfinite
 
 import pandas as pd
 
-from report_agent.metadata.models import TemplateMetadata
+from report_agent.metadata.models import InputDefinition, TemplateMetadata
 from report_agent.models.inputs import ContentInput, TableInput, TextInput
 from report_agent.models.results import Diagnostic
 from report_agent.resolution.interfaces import AgentTextGenerator, DataSource
 from report_agent.resolution.models import (
     ColumnSummary,
+    GenerationRequest,
     QuerySource,
     ResolutionResult,
     TableSummary,
@@ -28,12 +31,16 @@ class ContentResolver:
         sources: Mapping[str, DataSource],
         text_generator: AgentTextGenerator | None = None,
         summary_max_columns: int = 20,
+        summary_max_row_chars: int = 8192,
     ) -> None:
         if summary_max_columns < 1:
             raise ValueError("summary_max_columns must be positive.")
+        if summary_max_row_chars < 0:
+            raise ValueError("summary_max_row_chars must be non-negative.")
         self._sources = dict(sources)
         self._text_generator = text_generator
         self._summary_max_columns = summary_max_columns
+        self._summary_max_row_chars = summary_max_row_chars
 
     def resolve(
         self,
@@ -72,6 +79,7 @@ class ContentResolver:
                 if self._text_generator is None:
                     raise ValueError("Agent text requires an injected text generator.")
                 tables = {}
+                remaining_row_chars = self._summary_max_row_chars
                 for dependency in definition.uses:
                     value = resolved.get(dependency)
                     if (
@@ -83,16 +91,15 @@ class ContentResolver:
                             f"Agent input requires resolved table {dependency!r}."
                         )
                     tables[dependency] = self._summary(
-                        value.data, metadata.inputs[dependency].summary_head_rows
+                        value.data,
+                        metadata.inputs[dependency].summary_head_rows,
+                        remaining_row_chars,
                     )
-                text = self._text_generator.generate(definition.prompt, tables)
-                if not isinstance(text, str):
-                    raise ValueError("Agent text generator must return plain text.")
-                value = TextInput(text)
-                issues = text_issues(value, definition)
-                if issues:
-                    raise ValueError("; ".join(message for _, message in issues))
-                resolved[name] = value
+                    if tables[dependency].head_rows:
+                        remaining_row_chars -= len(
+                            self._row_json(tables[dependency].head_rows)
+                        )
+                resolved[name] = self._generate(definition, tables)
             return ResolutionResult(resolved)
         except Exception as exc:
             code = (
@@ -116,7 +123,32 @@ class ContentResolver:
                 ),
             )
 
-    def _summary(self, frame: pd.DataFrame, head_rows: int) -> TableSummary:
+    def _generate(
+        self, definition: InputDefinition, tables: Mapping[str, TableSummary]
+    ) -> TextInput:
+        request = GenerationRequest(definition.prompt, tables, definition.max_chars)
+        for attempt in range(2):
+            text = self._text_generator.generate(request)
+            if not isinstance(text, str):
+                raise ValueError("Agent text generator must return plain text.")
+            value = TextInput(text)
+            issues = text_issues(value, definition)
+            if not issues:
+                return value
+            message = "; ".join(message for _, message in issues)
+            if attempt == 0 and all(code == "text_length" for code, _ in issues):
+                request = replace(
+                    request,
+                    retry_feedback=f"{message} Previous output had {len(text)} "
+                    "characters. Return a replacement within "
+                    f"{request.max_chars} characters.",
+                )
+            else:
+                raise ValueError(message)
+
+    def _summary(
+        self, frame: pd.DataFrame, head_rows: int, max_row_chars: int
+    ) -> TableSummary:
         columns = []
         for index in range(min(frame.shape[1], self._summary_max_columns)):
             series = frame.iloc[:, index]
@@ -136,17 +168,30 @@ class ContentResolver:
                     str(frame.columns[index])[:120], str(series.dtype), metrics
                 )
             )
+        rows = []
+        row_chars = 2  # JSON array brackets; include separators and escaped cells.
+        for row in frame.iloc[:head_rows, : len(columns)].itertuples(
+            index=False, name=None
+        ):
+            cells = tuple(self._summary_cell(value) for value in row)
+            cost = len(self._row_json(cells)) + (1 if rows else 0)
+            if row_chars + cost > max_row_chars:
+                break
+            rows.append(cells)
+            row_chars += cost
         return TableSummary(
             len(frame),
             frame.shape[1],
             tuple(columns),
             max(0, frame.shape[1] - len(columns)),
-            tuple(
-                tuple(self._summary_cell(value) for value in row)
-                for row in frame.iloc[:head_rows, : len(columns)].itertuples(
-                    index=False, name=None
-                )
-            ),
+            tuple(rows),
+            min(head_rows, len(frame)) - len(rows),
+        )
+
+    @staticmethod
+    def _row_json(value: object) -> str:
+        return json.dumps(
+            value, ensure_ascii=False, allow_nan=False, separators=(",", ":")
         )
 
     @staticmethod

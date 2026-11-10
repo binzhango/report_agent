@@ -190,7 +190,10 @@ check extracted content/pagination when texres and Poppler are available.
 
 Column layout planning is specified separately in the table layout proposal.
 The optional [content resolver](content-resolution.md) exposes injected data-source
-and text-generator interfaces, bounded summaries, and dependency ordering. Live
+and text-generator interfaces, bounded summaries, and dependency ordering.
+`GenerationRequest` carries the character limit and length-retry feedback.
+Opt-in raw rows share an 8,192-character budget per request; unreferenced hidden
+inputs are rejected by metadata. Live
 database/model adapters and HTTP/job services remain future integrations. Business
 calculations and model invocation belong to application-owned adapters. See
 [review hardening](review-hardening.md) for the package, CLI, and diagnostic contracts.

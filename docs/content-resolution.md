@@ -51,6 +51,8 @@ summarizes it normally. It needs no template placeholder and the renderer skips
 its conversion, styling, assets, and package requirements. Referencing a hidden
 input in a template is a `hidden_placeholder` error. A table in `uses` must still
 be resolved even if it is optional in metadata.
+Hidden inputs must be referenced by at least one agent input's `uses`; metadata
+rejects unreferenced hidden declarations as dead configuration.
 
 The prompt may be text or an identifier understood by your generator adapter.
 No prompt registry is built into the renderer. JSON/YAML metadata share the same
@@ -69,6 +71,7 @@ resolver = ContentResolver(
     sources={"postgres_reports": my_read_only_data_source},
     text_generator=my_text_generator,
     summary_max_columns=20,
+    summary_max_row_chars=8192,
 )
 resolved = resolver.resolve(
     metadata,
@@ -104,13 +107,20 @@ builder. Fetching the extra row lets the resolver detect an exceeded limit rathe
 than silently returning a truncated report. Do not append SQL blindly; adapter
 validation, binding, read-only permissions, and timeouts still apply.
 
-`AgentTextGenerator.generate(prompt, tables)` receives only a mapping of the
-explicitly permitted table names to `TableSummary` objects. Each summary contains
+`AgentTextGenerator.generate(request)` now receives a `GenerationRequest` with
+`prompt`, `tables`, `max_chars`, and optional `retry_feedback`. Import it from
+`report_agent.resolution`. Application adapters using the previous
+`generate(prompt, tables)` signature must migrate to this request object and
+include the character limit in their model instructions.
+
+`request.tables` maps only explicitly permitted table names to `TableSummary`
+objects. Each summary contains
 row/column counts and up to `summary_max_columns` column profiles. Column names
 are capped at 120 characters. Profiles include dtype, non-null count, and finite
 numeric min/max/mean where applicable. Raw rows and free-text cells are excluded
 by default. SQL, credentials, and the full DataFrame are never passed.
 
+**`summary_head_rows` sends raw cell data to the model.** It is disabled by default.
 For category or time-series context, explicitly set `summary_head_rows` on the
 table declaration (0 by default, at most 20). `TableSummary.head_rows` then holds
 that many leading rows, limited to the summarized columns. Cells preserve simple
@@ -118,6 +128,18 @@ numeric/boolean values; missing/nonfinite values become `None`, and other values
 are strings capped at 200 characters. Each row follows `TableSummary.columns`
 order. This opt-in exposes cell values to the generator, including text, so select
 only intended columns in the query. Indices are excluded.
+
+`ContentResolver(summary_max_row_chars=8192)` caps the combined row samples across
+all `uses` tables in one generation request, including its retry. The budget
+counts compact JSON characters (Unicode retained, including escaping, brackets,
+and separators) for non-empty `head_rows` arrays. It is a character bound, not a
+token or byte bound; prompts, column profiles, and adapter-added instructions are
+outside this row-data budget. A value of zero disables row samples.
+
+Tables consume this shared budget in `uses` order. Only complete leading rows
+are retained; a row that does not fit and all following rows in that table are
+dropped. `TableSummary.head_rows_omitted` reports how many requested, available
+rows were dropped for budget reasons. Later tables use the remaining budget.
 
 Leading rows are a sample, not an automatic top-category or trend analysis.
 For grounded rankings, query a deterministic, pre-aggregated result with explicit
@@ -135,6 +157,11 @@ profiles alone do not establish that generated business claims are correct.
   excess rows, missing table dependencies, and absent generators return diagnostics.
 - Explicitly supplied agent text takes precedence over generation, allowing a
   reviewed value to be used without contacting a model.
+- If generated text exceeds `max_chars`, the resolver allows exactly one retry.
+  The next request contains the same prompt, table summaries, and limit, plus
+  `retry_feedback` describing the length violation and previous character count.
+  A second invalid output fails with `resolution_failed`; output is never silently
+  truncated. Other validation failures and adapter exceptions are not retried.
 - Failures can retain partial resolved inputs. Check diagnostics before rendering.
 - Unexpected adapter exceptions are logged with tracebacks and become `internal_error`; cancellation exceptions
   still propagate.
