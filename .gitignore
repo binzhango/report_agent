@@ -1,5 +1,6 @@
 # Python and uv environments
 .venv/
+.uv-cache/
 __pycache__/
 *.py[cod]
 *.egg-info/
@@ -11,6 +12,8 @@ dist/
 .ruff_cache/
 .mypy_cache/
 .hypothesis/
+.tox/
+.nox/
 .coverage
 .coverage.*
 htmlcov/
@@ -22,13 +25,37 @@ coverage.xml
 !.env.example
 .envrc
 
+# Local editor and agent settings
+/.vscode/
+/.idea/
+/.codex/
+/.agents/
+*.swp
+*.swo
+*~
+
 # Generated reports, assets, benchmarks, and TeX intermediates
 output/
 tmp/
+*.artifacts/
+.report-compile-*/
 *.aux
 *.log
 *.toc
+*.lof
+*.lot
+*.out
+*.fls
+*.fdb_latexmk
+*.bbl
+*.blg
+*.xdv
+*.dvi
+*.synctex
 *.synctex.gz
 
 # Operating system files
 .DS_Store
+._*
+Thumbs.db
+Desktop.ini

@@ -139,7 +139,8 @@ The application composes these services; interfaces call it.
    Attributed table width overflow above `compiler.table_overflow_tolerance_pt`
    (default 2pt) is an error and prevents PDF publication; smaller values warn.
 8. Retain expanded source at its original bundle-relative path, plus supported
-   resources, graphics, and logs. Refuse artifact paths that overwrite source resources.
+   resources, graphics, and logs. Refuse PDF output and artifact paths that
+   overwrite source resources. PDF output collisions fail before staging.
 9. Publish the final PDF only on success, then clean the workspace.
 
 `RenderResult.pdf_path` is `None` on failure. Diagnostics include stage, code,

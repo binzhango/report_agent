@@ -92,7 +92,7 @@ This is the initial reading order: finish the rows for one column group before
 starting the next group. Coordinating matching row ranges across adjacent page
 groups would be a separate, more complex policy.
 
-Column splitting is implemented by the Python layout layer. Native LaTeX
+The proposed Python layout layer would implement column splitting. Native LaTeX
 pagination handles each group's rows. `longtable` alone does not split excessive
 columns into multiple tables.
 
@@ -249,9 +249,10 @@ guessing. Robust `auto` behavior requires more than counting columns or estimati
 string lengths in Python.
 
 Templates need to expose actual printable area/slot dimensions. TeX can provide
-dimensions for candidate table layouts. Add table-boundary markers to diagnostics
-so overfull boxes can be associated with the affected input; currently the wrapper
-only reports generic overfull warnings.
+dimensions for candidate table layouts. The renderer already adds table-boundary
+markers and associates reported overfull boxes with generated inputs. Width above
+`compiler.table_overflow_tolerance_pt` is an error. Automatic layout planning still
+needs measurements of candidate layouts and the available area.
 
 After measurement exists, a later bounded automatic policy could try:
 

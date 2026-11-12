@@ -86,6 +86,8 @@ class ReportRenderer:
             output = Path(request.output).expanduser().absolute()
             if output.suffix.lower() != ".pdf":
                 raise ValueError("Output path must end in .pdf.")
+            if output.resolve() in {path.resolve() for path in bundle.resources}:
+                raise ValueError("Output path would overwrite template resources.")
             stage = "input_validation"
             issues = self._validator.validate(metadata, bundle, request.inputs)
             if issues:

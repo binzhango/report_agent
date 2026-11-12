@@ -16,6 +16,7 @@ of optional data/agent preparation.
 | Generation constraints | `GenerationRequest` supplies `max_chars` to the generator; a length violation permits one retry with feedback before hard failure. |
 | Raw context size | Opt-in raw rows share an 8,192-character JSON budget across all tables in a generation request. Trailing rows are dropped and omission counts are exposed. |
 | Dead hidden declarations | Metadata rejects hidden inputs that no agent `uses` references. |
+| Output/resource collisions | Output validation rejects a PDF destination that resolves to a template resource before staging or compilation. Artifact destinations are also checked against template resources. |
 | Implicit rounding | An omitted precision preserves numeric display precision; explicit precision rounds floating values. Integer counts remain integer displays. |
 | pdfLaTeX text limitations | Escape `<`, `>`, and `|` with text commands, including in OT1 templates. Keep supported pdfLaTeX examples; recommend XeLaTeX/LuaLaTeX and appropriate fonts for broader Unicode coverage. |
 | Ambiguous stages | Separate metadata, template loading, output validation, input validation, content rendering, template rendering, package validation, compilation, and publication stages. |

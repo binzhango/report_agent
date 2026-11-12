@@ -280,3 +280,24 @@ def test_artifact_paths_cannot_overwrite_original_template(build) -> None:
     assert result.pdf_path is None
     assert "overwrite template resources" in result.diagnostics[0].message
     assert (renamed / "main.tex").read_text() == source
+
+
+@pytest.mark.parametrize("alias", [False, True])
+def test_output_pdf_cannot_overwrite_template_resource(build, alias) -> None:
+    renderer, request, compiler, workspaces = build
+    resource = request.template / "reference.pdf"
+    resource.write_bytes(b"%PDF-original resource")
+    output = resource
+    if alias:
+        request.output.parent.mkdir()
+        output = request.output
+        output.symlink_to(resource)
+    result = renderer.render(
+        RenderRequest(request.template, request.metadata, request.inputs, output)
+    )
+    assert result.pdf_path is None
+    assert result.diagnostics[0].stage == "output_validation"
+    assert "overwrite template resources" in result.diagnostics[0].message
+    assert resource.read_bytes() == b"%PDF-original resource"
+    assert compiler.calls == 0
+    assert not workspaces.exists()
