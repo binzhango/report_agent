@@ -1,0 +1,238 @@
+<?xml version='1.0' encoding='utf-8'?>
+<office:document xmlns:fo="urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0" xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0" xmlns:ra="urn:report-agent:template:1" xmlns:style="urn:oasis:names:tc:opendocument:xmlns:style:1.0" xmlns:svg="urn:oasis:names:tc:opendocument:xmlns:svg-compatible:1.0" xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0" xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0" office:version="1.3" office:mimetype="application/vnd.oasis.opendocument.text">
+  <office:font-face-decls>
+    <style:font-face style:name="DejaVu Sans" svg:font-family="DejaVu Sans" />
+  </office:font-face-decls>
+  <office:styles>
+    <style:style style:name="Body" style:family="paragraph">
+      <style:paragraph-properties fo:margin-top=".22cm" fo:margin-bottom=".3cm" fo:line-height="125%" />
+      <style:text-properties style:font-name="DejaVu Sans" fo:font-size="10.5pt" fo:color="#000000" fo:font-weight="normal" />
+    </style:style>
+    <style:style style:name="Title" style:family="paragraph">
+      <style:paragraph-properties fo:margin-top=".0cm" fo:margin-bottom=".6cm" fo:line-height="125%" fo:keep-with-next="always" />
+      <style:text-properties style:font-name="DejaVu Sans" fo:font-size="27pt" fo:color="#000000" fo:font-weight="bold" />
+    </style:style>
+    <style:style style:name="Heading" style:family="paragraph">
+      <style:paragraph-properties fo:margin-top=".25cm" fo:margin-bottom=".45cm" fo:line-height="125%" fo:keep-with-next="always" />
+      <style:text-properties style:font-name="DejaVu Sans" fo:font-size="19pt" fo:color="#000000" fo:font-weight="bold" />
+    </style:style>
+    <style:style style:name="Subheading" style:family="paragraph">
+      <style:paragraph-properties fo:margin-top=".35cm" fo:margin-bottom=".2cm" fo:line-height="125%" fo:keep-with-next="always" />
+      <style:text-properties style:font-name="DejaVu Sans" fo:font-size="12pt" fo:color="#000000" fo:font-weight="bold" />
+    </style:style>
+    <style:style style:name="Small" style:family="paragraph">
+      <style:paragraph-properties fo:margin-top=".0cm" fo:margin-bottom=".2cm" fo:line-height="125%" />
+      <style:text-properties style:font-name="DejaVu Sans" fo:font-size="8.5pt" fo:color="#5A6C73" fo:font-weight="normal" />
+    </style:style>
+    <style:style style:name="TableText" style:family="paragraph">
+      <style:paragraph-properties fo:margin-top=".0cm" fo:margin-bottom="0cm" fo:line-height="125%" />
+      <style:text-properties style:font-name="DejaVu Sans" fo:font-size="9.5pt" fo:color="#000000" fo:font-weight="normal" />
+    </style:style>
+    <style:style style:name="Kpi" style:family="paragraph">
+      <style:paragraph-properties fo:margin-top=".0cm" fo:margin-bottom=".12cm" fo:line-height="125%" />
+      <style:text-properties style:font-name="DejaVu Sans" fo:font-size="20pt" fo:color="#087E8B" fo:font-weight="bold" />
+    </style:style>
+    <style:style style:name="NextPage" style:family="paragraph" style:master-page-name="Portrait">
+      <style:paragraph-properties fo:margin-top=".0cm" fo:margin-bottom=".45cm" fo:line-height="125%" fo:break-before="page" fo:keep-with-next="always" />
+      <style:text-properties style:font-name="DejaVu Sans" fo:font-size="19pt" fo:color="#000000" fo:font-weight="bold" />
+    </style:style>
+    <style:style style:name="LandscapePage" style:family="paragraph" style:master-page-name="Landscape">
+      <style:paragraph-properties fo:margin-top=".0cm" fo:margin-bottom=".45cm" fo:line-height="125%" fo:break-before="page" fo:keep-with-next="always" />
+      <style:text-properties style:font-name="DejaVu Sans" fo:font-size="19pt" fo:color="#000000" fo:font-weight="bold" />
+    </style:style>
+    <style:style style:name="HeaderText" style:family="paragraph">
+      <style:paragraph-properties fo:margin-bottom="0cm" />
+      <style:text-properties fo:font-size="9.5pt" fo:color="#FFFFFF" fo:font-weight="bold" style:font-name="DejaVu Sans" />
+    </style:style>
+    <style:style style:name="CoverStart" style:family="paragraph">
+      <style:paragraph-properties fo:margin-top=".0cm" fo:margin-bottom=".2cm" fo:line-height="125%" fo:break-before="auto" />
+      <style:text-properties style:font-name="DejaVu Sans" fo:font-size="8.5pt" fo:color="#5A6C73" fo:font-weight="normal" />
+    </style:style>
+  </office:styles>
+  <office:automatic-styles>
+    <style:page-layout style:name="PortraitLayout">
+      <style:page-layout-properties fo:page-width="21cm" fo:page-height="29.7cm" fo:margin-left="1.9cm" fo:margin-right="1.9cm" fo:margin-top="1.7cm" fo:margin-bottom="1.7cm" style:print-orientation="portrait" />
+      <style:footer-style>
+        <style:header-footer-properties fo:min-height=".5cm" fo:margin-top=".4cm" />
+      </style:footer-style>
+    </style:page-layout>
+    <style:page-layout style:name="LandscapeLayout">
+      <style:page-layout-properties fo:page-width="29.7cm" fo:page-height="21cm" fo:margin-left="1.9cm" fo:margin-right="1.9cm" fo:margin-top="1.7cm" fo:margin-bottom="1.7cm" style:print-orientation="landscape" />
+      <style:footer-style>
+        <style:header-footer-properties fo:min-height=".5cm" fo:margin-top=".4cm" />
+      </style:footer-style>
+    </style:page-layout>
+    <style:style style:name="Header" style:family="table-cell">
+      <style:table-cell-properties fo:background-color="#18343D" fo:padding="0.16cm" fo:border="0.5pt solid #D9D9D9" style:vertical-align="middle" />
+      <style:paragraph-properties fo:text-align="left" />
+      <style:text-properties style:font-name="DejaVu Sans" fo:font-size="10pt" fo:color="#FFFFFF" fo:font-weight="bold" />
+    </style:style>
+    <style:style style:name="Cell" style:family="table-cell">
+      <style:table-cell-properties fo:background-color="#FFFFFF" fo:padding="0.16cm" fo:border="0.5pt solid #D9D9D9" style:vertical-align="middle" />
+      <style:paragraph-properties fo:text-align="left" />
+      <style:text-properties style:font-name="DejaVu Sans" fo:font-size="10pt" fo:color="#18343D" fo:font-weight="normal" />
+    </style:style>
+    <style:style style:name="Alternate" style:family="table-cell">
+      <style:table-cell-properties fo:background-color="#F1F6F7" fo:padding="0.16cm" fo:border="0.5pt solid #D9D9D9" style:vertical-align="middle" />
+      <style:paragraph-properties fo:text-align="left" />
+      <style:text-properties style:font-name="DejaVu Sans" fo:font-size="10pt" fo:color="#18343D" fo:font-weight="normal" />
+    </style:style>
+    <style:style style:name="ReportTable" style:family="table">
+      <style:table-properties table:align="left" fo:margin-bottom=".35cm" />
+    </style:style>
+    <style:style style:name="Wide" style:family="table-column">
+      <style:table-column-properties style:column-width="5.2cm" />
+    </style:style>
+    <style:style style:name="Num" style:family="table-column">
+      <style:table-column-properties style:column-width="3cm" />
+    </style:style>
+    <style:style style:name="Label" style:family="table-column">
+      <style:table-column-properties style:column-width="4.5cm" />
+    </style:style>
+    <style:style style:name="SmallNum" style:family="table-column">
+      <style:table-column-properties style:column-width="3.175cm" />
+    </style:style>
+    <style:style style:name="ProductGroup" style:family="table-column">
+      <style:table-column-properties style:column-width="4cm" />
+    </style:style>
+    <style:style style:name="ProductName" style:family="table-column">
+      <style:table-column-properties style:column-width="9cm" />
+    </style:style>
+    <style:style style:name="ProductNum" style:family="table-column">
+      <style:table-column-properties style:column-width="5.35cm" />
+    </style:style>
+    <style:style style:name="Cohort" style:family="table-column">
+      <style:table-column-properties style:column-width="2.5cm" />
+    </style:style>
+    <style:style style:name="Region" style:family="table-column">
+      <style:table-column-properties style:column-width="5.2cm" />
+    </style:style>
+    <style:style style:name="Count" style:family="table-column">
+      <style:table-column-properties style:column-width="2.8cm" />
+    </style:style>
+    <style:style style:name="ARR" style:family="table-column">
+      <style:table-column-properties style:column-width="3.3cm" />
+    </style:style>
+    <style:style style:name="Rate" style:family="table-column">
+      <style:table-column-properties style:column-width="3.4cm" />
+    </style:style>
+  </office:automatic-styles>
+  <office:master-styles>
+    <style:master-page style:name="Standard" style:page-layout-name="PortraitLayout">
+      <style:header>
+        <text:p text:style-name="Small">NORTHSTAR   QUARTERLY BUSINESS REVIEW</text:p>
+      </style:header>
+      <style:footer>
+        <text:p text:style-name="Small">
+          Illustrative operating report    
+          <text:page-number text:select-page="current">1</text:page-number>
+        </text:p>
+      </style:footer>
+    </style:master-page>
+    <style:master-page style:name="Portrait" style:page-layout-name="PortraitLayout">
+      <style:header>
+        <text:p text:style-name="Small">NORTHSTAR   QUARTERLY BUSINESS REVIEW</text:p>
+      </style:header>
+      <style:footer>
+        <text:p text:style-name="Small">
+          Illustrative operating report    
+          <text:page-number text:select-page="current">1</text:page-number>
+        </text:p>
+      </style:footer>
+    </style:master-page>
+    <style:master-page style:name="Landscape" style:page-layout-name="LandscapeLayout">
+      <style:header>
+        <text:p text:style-name="Small">NORTHSTAR   QUARTERLY BUSINESS REVIEW</text:p>
+      </style:header>
+      <style:footer>
+        <text:p text:style-name="Small">
+          Illustrative operating report    
+          <text:page-number text:select-page="current">1</text:page-number>
+        </text:p>
+      </style:footer>
+    </style:master-page>
+  </office:master-styles>
+  <office:body>
+    <office:text>
+      <text:p text:style-name="CoverStart">
+        <ra:image name="logo" width="6cm" height="1.2cm" />
+      </text:p>
+      <text:p text:style-name="Small">
+        <ra:text name="period" />
+      </text:p>
+      <text:p text:style-name="Title">
+        <ra:text name="title" />
+      </text:p>
+      <text:p text:style-name="Body">
+        <ra:text name="report_purpose" />
+      </text:p>
+      <table:table table:name="KeyMetrics" table:style-name="ReportTable">
+        <table:table-column table:style-name="Wide" />
+        <table:table-column table:style-name="Wide" />
+        <table:table-column table:style-name="Wide" />
+        <table:table-row>
+          <table:table-cell>
+            <text:p text:style-name="Kpi">
+              <ra:text name="revenue" />
+            </text:p>
+            <text:p text:style-name="Small">Q3 revenue</text:p>
+          </table:table-cell>
+          <table:table-cell>
+            <text:p text:style-name="Kpi">
+              <ra:text name="margin" />
+            </text:p>
+            <text:p text:style-name="Small">Operating margin</text:p>
+          </table:table-cell>
+          <table:table-cell>
+            <text:p text:style-name="Kpi">
+              <ra:text name="retention" />
+            </text:p>
+            <text:p text:style-name="Small">Customer retention</text:p>
+          </table:table-cell>
+        </table:table-row>
+      </table:table>
+      <text:h text:outline-level="1" text:style-name="Subheading">Executive summary</text:h>
+      <ra:paragraphs name="summary" style-name="Body" />
+      <text:p text:style-name="Subheading">Monthly revenue compared with plan</text:p>
+      <text:p>
+        <ra:image name="trend" width="17.2cm" height="6.1cm" />
+      </text:p>
+      <text:p text:style-name="Small">
+        <ra:text name="growth" />
+      </text:p>
+      <text:h text:outline-level="1" text:style-name="NextPage">Regional and channel performance</text:h>
+      <text:p text:style-name="Subheading">Regional revenue ($000) and operating metrics</text:p>
+      <ra:table name="financial" table-style-name="ReportTable" column-style-names="Wide Num Num Num Num" header-cell-style-name="Header" body-cell-style-name="Cell" alternate-cell-style-name="Alternate" header-paragraph-style-name="HeaderText" body-paragraph-style-name="TableText" />
+      <ra:paragraphs name="financial_commentary" style-name="Body" />
+      <text:p text:style-name="Subheading">Acquisition channels</text:p>
+      <ra:table name="comparison" table-style-name="ReportTable" column-style-names="Label SmallNum SmallNum SmallNum" header-cell-style-name="Header" body-cell-style-name="Cell" alternate-cell-style-name="Alternate" header-paragraph-style-name="HeaderText" body-paragraph-style-name="TableText" />
+      <ra:paragraphs name="channels_note" style-name="Body" />
+      <text:h text:outline-level="1" text:style-name="NextPage">Service quality and customer signals</text:h>
+      <text:p text:style-name="Body">Service attainment improved across the four regions. The correlation matrix describes illustrative relationships among customer signals.</text:p>
+      <text:p>
+        <ra:image name="service_chart" width="17.2cm" height="6.5cm" />
+      </text:p>
+      <text:p text:style-name="Subheading">Service attainment (%)</text:p>
+      <ra:table name="sequential" table-style-name="ReportTable" column-style-names="Label SmallNum SmallNum SmallNum SmallNum" header-cell-style-name="Header" body-cell-style-name="Cell" alternate-cell-style-name="Alternate" header-paragraph-style-name="HeaderText" body-paragraph-style-name="TableText" />
+      <text:p text:style-name="Subheading">Illustrative correlation coefficients</text:p>
+      <ra:table name="diverging" table-style-name="ReportTable" column-style-names="Label SmallNum SmallNum SmallNum SmallNum" header-cell-style-name="Header" body-cell-style-name="Cell" alternate-cell-style-name="Alternate" header-paragraph-style-name="HeaderText" body-paragraph-style-name="TableText" />
+      <text:h text:outline-level="1" text:style-name="LandscapePage">Product portfolio and regional mix</text:h>
+      <text:p text:style-name="Subheading">Product revenue ($000) and renewal rates</text:p>
+      <ra:table name="products" table-style-name="ReportTable" column-style-names="ProductGroup ProductName ProductNum ProductNum" header-cell-style-name="Header" body-cell-style-name="Cell" alternate-cell-style-name="Alternate" header-paragraph-style-name="HeaderText" body-paragraph-style-name="TableText" />
+      <text:p>
+        <ra:image name="regional_graph" width="24cm" height="7.5cm" />
+      </text:p>
+      <text:p text:style-name="Small">A missing renewal rate is shown as --. It is not treated as zero.</text:p>
+      <text:h text:outline-level="1" text:style-name="NextPage">Customer cohort appendix</text:h>
+      <ra:paragraphs name="cohort_note" style-name="Body" />
+      <ra:table name="cohorts" table-style-name="ReportTable" column-style-names="Cohort Region Count ARR Rate" header-cell-style-name="Header" body-cell-style-name="Cell" alternate-cell-style-name="Alternate" header-paragraph-style-name="HeaderText" body-paragraph-style-name="TableText" />
+      <text:h text:outline-level="1" text:style-name="NextPage">Outlook and reporting assumptions</text:h>
+      <ra:paragraphs name="outlook" style-name="Body" />
+      <text:p text:style-name="Subheading">Priorities for the next review</text:p>
+      <ra:paragraphs name="next_steps" style-name="Body" />
+      <text:p text:style-name="Subheading">Definitions and assumptions</text:p>
+      <ra:paragraphs name="assumptions" style-name="Body" />
+      <ra:paragraphs name="disclaimer" style-name="Small" />
+    </office:text>
+  </office:body>
+</office:document>

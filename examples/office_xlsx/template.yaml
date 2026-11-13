@@ -1,0 +1,9 @@
+schema_version: 2
+id: office_xlsx
+entrypoint: main.fods
+document:
+  engine: libreoffice
+  format: xlsx
+inputs:
+  sales:
+    type: table

@@ -1,0 +1,22 @@
+schema_version: 2
+id: comprehensive_xlsx
+entrypoint: main.fods
+document:
+  engine: libreoffice
+  format: xlsx
+inputs:
+  channels_raw:
+    type: table
+  cohorts_raw:
+    type: table
+  financial_raw:
+    type: table
+  monthly_raw:
+    type: table
+  period:
+    type: text
+    max_chars: 3000
+  products_raw:
+    type: table
+  service_raw:
+    type: table

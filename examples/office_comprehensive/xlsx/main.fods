@@ -1,0 +1,206 @@
+<?xml version='1.0' encoding='utf-8'?>
+<office:document xmlns:fo="urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0" xmlns:number="urn:oasis:names:tc:opendocument:xmlns:datastyle:1.0" xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0" xmlns:ra="urn:report-agent:template:1" xmlns:style="urn:oasis:names:tc:opendocument:xmlns:style:1.0" xmlns:svg="urn:oasis:names:tc:opendocument:xmlns:svg-compatible:1.0" xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0" xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0" office:version="1.3" office:mimetype="application/vnd.oasis.opendocument.spreadsheet">
+  <office:font-face-decls>
+    <style:font-face style:name="DejaVu Sans" svg:font-family="DejaVu Sans" />
+  </office:font-face-decls>
+  <office:styles>
+    </office:styles>
+  <office:automatic-styles>
+    <style:page-layout style:name="Print">
+      <style:page-layout-properties fo:page-width="29.7cm" fo:page-height="21cm" fo:margin="1cm" style:print-orientation="landscape" style:scale-to-X="1" style:scale-to-Y="0" />
+    </style:page-layout>
+    <style:style style:name="Body" style:family="paragraph">
+      <style:paragraph-properties fo:margin-top=".0cm" fo:margin-bottom="0cm" fo:line-height="125%" />
+      <style:text-properties style:font-name="DejaVu Sans" fo:font-size="11pt" fo:color="#18343D" fo:font-weight="normal" />
+    </style:style>
+    <number:number-style style:name="Integer">
+      <number:number number:decimal-places="0" number:min-integer-digits="1" number:grouping="true" />
+    </number:number-style>
+    <number:number-style style:name="Decimal">
+      <number:number number:decimal-places="1" number:min-integer-digits="1" number:grouping="true" />
+    </number:number-style>
+    <number:number-style style:name="Percent">
+      <number:number number:decimal-places="1" number:min-integer-digits="1" />
+      <number:text>%</number:text>
+    </number:number-style>
+    <style:style style:name="Header" style:family="table-cell">
+      <style:table-cell-properties fo:wrap-option="wrap" fo:background-color="#18343D" fo:padding="0.16cm" fo:border="0.5pt solid #D9D9D9" style:vertical-align="middle" />
+      <style:paragraph-properties fo:text-align="left" />
+      <style:text-properties style:font-name="DejaVu Sans" fo:font-size="11pt" fo:color="#FFFFFF" fo:font-weight="bold" />
+    </style:style>
+    <style:style style:name="Cell" style:family="table-cell">
+      <style:table-cell-properties fo:wrap-option="wrap" fo:background-color="#FFFFFF" fo:padding="0.16cm" fo:border="0.5pt solid #D9D9D9" style:vertical-align="middle" />
+      <style:paragraph-properties fo:text-align="left" />
+      <style:text-properties style:font-name="DejaVu Sans" fo:font-size="11pt" fo:color="#18343D" fo:font-weight="normal" />
+    </style:style>
+    <style:style style:name="Alternate" style:family="table-cell">
+      <style:table-cell-properties fo:wrap-option="wrap" fo:background-color="#F1F6F7" fo:padding="0.16cm" fo:border="0.5pt solid #D9D9D9" style:vertical-align="middle" />
+      <style:paragraph-properties fo:text-align="left" />
+      <style:text-properties style:font-name="DejaVu Sans" fo:font-size="11pt" fo:color="#18343D" fo:font-weight="normal" />
+    </style:style>
+    <style:style style:name="Numeric" style:family="table-cell" style:data-style-name="Decimal">
+      <style:table-cell-properties fo:wrap-option="wrap" fo:background-color="#FFFFFF" fo:padding="0.16cm" fo:border="0.5pt solid #D9D9D9" style:vertical-align="middle" />
+      <style:paragraph-properties fo:text-align="right" />
+      <style:text-properties style:font-name="DejaVu Sans" fo:font-size="11pt" fo:color="#18343D" fo:font-weight="normal" />
+    </style:style>
+    <style:style style:name="Count" style:family="table-cell" style:data-style-name="Integer">
+      <style:table-cell-properties fo:wrap-option="wrap" fo:background-color="#FFFFFF" fo:padding="0.16cm" fo:border="0.5pt solid #D9D9D9" style:vertical-align="middle" />
+      <style:paragraph-properties fo:text-align="right" />
+      <style:text-properties style:font-name="DejaVu Sans" fo:font-size="11pt" fo:color="#18343D" fo:font-weight="normal" />
+    </style:style>
+    <style:style style:name="Rate" style:family="table-cell" style:data-style-name="Percent">
+      <style:table-cell-properties fo:wrap-option="wrap" fo:background-color="#FFFFFF" fo:padding="0.16cm" fo:border="0.5pt solid #D9D9D9" style:vertical-align="middle" />
+      <style:paragraph-properties fo:text-align="right" />
+      <style:text-properties style:font-name="DejaVu Sans" fo:font-size="11pt" fo:color="#18343D" fo:font-weight="normal" />
+    </style:style>
+    <style:style style:name="Title" style:family="table-cell">
+      <style:table-cell-properties fo:wrap-option="wrap" fo:background-color="#FFFFFF" fo:padding="0.16cm" fo:border="0.5pt solid #D9D9D9" style:vertical-align="middle" />
+      <style:paragraph-properties fo:text-align="left" />
+      <style:text-properties style:font-name="DejaVu Sans" fo:font-size="20pt" fo:color="#18343D" fo:font-weight="bold" />
+    </style:style>
+    <style:style style:name="Metric" style:family="table-cell" style:data-style-name="Decimal">
+      <style:table-cell-properties fo:wrap-option="wrap" fo:background-color="#FFFFFF" fo:padding="0.16cm" fo:border="0.5pt solid #D9D9D9" style:vertical-align="middle" />
+      <style:paragraph-properties fo:text-align="left" />
+      <style:text-properties style:font-name="DejaVu Sans" fo:font-size="18pt" fo:color="#087E8B" fo:font-weight="bold" />
+    </style:style>
+    <style:style style:name="ReportTable" style:family="table" style:master-page-name="SheetMaster">
+      <style:table-properties table:display="true" />
+    </style:style>
+    <style:style style:name="Label" style:family="table-column">
+      <style:table-column-properties style:column-width="6cm" />
+    </style:style>
+    <style:style style:name="Value" style:family="table-column">
+      <style:table-column-properties style:column-width="4cm" />
+    </style:style>
+    <style:style style:name="Wide" style:family="table-column">
+      <style:table-column-properties style:column-width="7cm" />
+    </style:style>
+    <style:style style:name="Num" style:family="table-column">
+      <style:table-column-properties style:column-width="4cm" />
+    </style:style>
+    <style:style style:name="Product" style:family="table-column">
+      <style:table-column-properties style:column-width="8cm" />
+    </style:style>
+  </office:automatic-styles>
+  <office:master-styles>
+    <style:master-page style:name="SheetMaster" style:page-layout-name="Print" />
+  </office:master-styles>
+  <office:body>
+    <office:spreadsheet>
+      <table:table table:name="Summary" table:style-name="ReportTable">
+        <table:table-column table:style-name="Wide" />
+        <table:table-column table:style-name="Wide" />
+        <table:table-row>
+          <table:table-cell table:style-name="Title" table:number-columns-spanned="2" office:value-type="string">
+            <text:p text:style-name="Body">Northstar quarterly business review</text:p>
+          </table:table-cell>
+          <table:table-cell table:style-name="Cell" office:value-type="string">
+            <text:p text:style-name="Body">Q3 2026</text:p>
+          </table:table-cell>
+        </table:table-row>
+        <table:table-row>
+          <table:table-cell table:style-name="Header" office:value-type="string">
+            <text:p text:style-name="Body">Summary metric</text:p>
+          </table:table-cell>
+          <table:table-cell table:style-name="Header" office:value-type="string">
+            <text:p text:style-name="Body">Value</text:p>
+          </table:table-cell>
+        </table:table-row>
+        <table:table-row>
+          <table:table-cell table:style-name="Cell" office:value-type="string">
+            <text:p text:style-name="Body">Q3 revenue ($000)</text:p>
+          </table:table-cell>
+          <table:table-cell table:style-name="Metric" table:formula="of:=SUM([Regions.C2:Regions.C5])" office:value-type="float" office:value="0">
+            <text:p text:style-name="Body">0</text:p>
+          </table:table-cell>
+        </table:table-row>
+        <table:table-row>
+          <table:table-cell table:style-name="Cell" office:value-type="string">
+            <text:p text:style-name="Body">Q2 revenue ($000)</text:p>
+          </table:table-cell>
+          <table:table-cell table:style-name="Metric" table:formula="of:=SUM([Regions.B2:Regions.B5])" office:value-type="float" office:value="0">
+            <text:p text:style-name="Body">0</text:p>
+          </table:table-cell>
+        </table:table-row>
+        <table:table-row>
+          <table:table-cell table:style-name="Cell" office:value-type="string">
+            <text:p text:style-name="Body">Quarter on quarter growth (%)</text:p>
+          </table:table-cell>
+          <table:table-cell table:style-name="Metric" table:formula="of:=([.B3]/[.B4]-1)*100" office:value-type="float" office:value="0">
+            <text:p text:style-name="Body">0</text:p>
+          </table:table-cell>
+        </table:table-row>
+        <table:table-row>
+          <table:table-cell table:style-name="Cell" office:value-type="string">
+            <text:p text:style-name="Body">New accounts</text:p>
+          </table:table-cell>
+          <table:table-cell table:style-name="Metric" table:formula="of:=SUM([Channels.C2:Channels.C4])" office:value-type="float" office:value="0">
+            <text:p text:style-name="Body">0</text:p>
+          </table:table-cell>
+        </table:table-row>
+        <table:table-row>
+          <table:table-cell table:style-name="Cell" office:value-type="string">
+            <text:p text:style-name="Body">Product revenue ($000)</text:p>
+          </table:table-cell>
+          <table:table-cell table:style-name="Metric" table:formula="of:=SUM([Products.C2:Products.C7])" office:value-type="float" office:value="0">
+            <text:p text:style-name="Body">0</text:p>
+          </table:table-cell>
+        </table:table-row>
+        <table:table-row>
+          <table:table-cell table:style-name="Cell" office:value-type="string">
+            <text:p text:style-name="Body">Cohort count</text:p>
+          </table:table-cell>
+          <table:table-cell table:style-name="Metric" table:formula="of:=COUNTA([Cohorts.A2:Cohorts.A65])" office:value-type="float" office:value="0">
+            <text:p text:style-name="Body">0</text:p>
+          </table:table-cell>
+        </table:table-row>
+        <table:table-row>
+          <table:table-cell table:style-name="Header" office:value-type="string">
+            <text:p text:style-name="Body">Reporting assumptions</text:p>
+          </table:table-cell>
+          <table:table-cell table:style-name="Header" office:value-type="string">
+            <text:p text:style-name="Body">Definition</text:p>
+          </table:table-cell>
+        </table:table-row>
+        <table:table-row>
+          <table:table-cell table:style-name="Cell" office:value-type="string">
+            <text:p text:style-name="Body">Units</text:p>
+          </table:table-cell>
+          <table:table-cell table:style-name="Cell" office:value-type="string">
+            <text:p text:style-name="Body">Revenue in USD thousands</text:p>
+          </table:table-cell>
+        </table:table-row>
+        <table:table-row>
+          <table:table-cell table:style-name="Cell" office:value-type="string">
+            <text:p text:style-name="Body">ARR</text:p>
+          </table:table-cell>
+          <table:table-cell table:style-name="Cell" office:value-type="string">
+            <text:p text:style-name="Body">Annualized measure, not quarterly revenue</text:p>
+          </table:table-cell>
+        </table:table-row>
+        <table:table-row>
+          <table:table-cell table:style-name="Cell" office:value-type="string">
+            <text:p text:style-name="Body">Data source</text:p>
+          </table:table-cell>
+          <table:table-cell table:style-name="Cell" office:value-type="string">
+            <text:p text:style-name="Body">Synthetic data shared with the PDF example</text:p>
+          </table:table-cell>
+        </table:table-row>
+        <table:table-row>
+          <table:table-cell table:style-name="Cell" office:value-type="string">
+            <text:p text:style-name="Body">Reporting period</text:p>
+          </table:table-cell>
+          <table:table-cell table:style-name="Cell">
+            <ra:cell name="period" />
+          </table:table-cell>
+        </table:table-row>
+      </table:table>
+      <ra:table name="financial_raw" sheet-name="Regions" table-style-name="ReportTable" column-style-names="Wide Num Num Num Num" column-cell-style-names="Cell Numeric Numeric Rate Rate" header-cell-style-name="Header" max-rows="100" max-columns="10" />
+      <ra:table name="channels_raw" sheet-name="Channels" table-style-name="ReportTable" column-style-names="Wide Num Num Num" column-cell-style-names="Cell Numeric Count Rate" header-cell-style-name="Header" max-rows="100" max-columns="10" />
+      <ra:table name="service_raw" sheet-name="Service" table-style-name="ReportTable" column-style-names="Wide Num Num Num Num" column-cell-style-names="Cell Count Count Count Count" header-cell-style-name="Header" max-rows="100" max-columns="10" />
+      <ra:table name="products_raw" sheet-name="Products" table-style-name="ReportTable" column-style-names="Label Product Num Num" column-cell-style-names="Cell Cell Numeric Rate" header-cell-style-name="Header" max-rows="100" max-columns="10" />
+      <ra:table name="cohorts_raw" sheet-name="Cohorts" table-style-name="ReportTable" column-style-names="Label Wide Num Num Num" column-cell-style-names="Cell Cell Count Numeric Rate" header-cell-style-name="Header" max-rows="100" max-columns="10" />
+      <ra:table name="monthly_raw" sheet-name="Monthly" table-style-name="ReportTable" column-style-names="Label Num Num" column-cell-style-names="Cell Numeric Numeric" header-cell-style-name="Header" max-rows="100" max-columns="10" />
+    </office:spreadsheet>
+  </office:body>
+</office:document>

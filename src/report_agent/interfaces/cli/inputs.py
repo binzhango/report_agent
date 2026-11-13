@@ -8,6 +8,7 @@ from pydantic import BaseModel, ConfigDict, model_validator
 
 from report_agent.metadata.parsers import JsonMetadataParser, YamlMetadataParser
 from report_agent.models.inputs import (
+    AnimationInput,
     ContentInput,
     GraphInput,
     ImageInput,
@@ -18,12 +19,15 @@ from report_agent.models.inputs import (
 
 class InputDescriptor(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    type: Literal["text", "image", "graph", "table"]
+    type: Literal["text", "image", "graph", "table", "animation"]
     text: str | None = None
     path: Path | None = None
+    poster_path: Path | None = None
 
     @model_validator(mode="after")
     def value_matches_type(self) -> "InputDescriptor":
+        if self.poster_path is not None and self.type != "animation":
+            raise ValueError("poster_path is supported only for animation.")
         if self.type == "text":
             if self.text is None or self.path is not None:
                 raise ValueError("Text descriptors require text and no path.")
@@ -72,6 +76,12 @@ class InputFileLoader:
                     asset = path.parent / asset
                 try:
                     result[name] = self.from_path(value.type, asset)
+                    if value.type == "animation" and value.poster_path is not None:
+                        poster = value.poster_path.expanduser()
+                        if not poster.is_absolute():
+                            poster = path.parent / poster
+                        checked = self.from_path("image", poster)
+                        result[name] = AnimationInput(result[name].path, checked.path)
                 except (OSError, ValueError) as exc:
                     raise ValueError(f"Input {name!r}: {exc}") from exc
         return result
@@ -82,6 +92,8 @@ class InputFileLoader:
             self._base_directory
         ):
             raise ValueError(f"Input path is outside base directory: {path}")
+        if kind == "animation":
+            return AnimationInput(path, path)
         if kind == "image":
             return ImageInput(path)
         if kind == "graph":

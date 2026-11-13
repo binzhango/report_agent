@@ -1,0 +1,22 @@
+schema_version: 2
+id: office_pptx
+entrypoint: main.fodp
+document:
+  engine: libreoffice
+  format: pptx
+inputs:
+  sales_data:
+    type: table
+    visible: false
+  sales_animation:
+    type: animation
+    source: generator
+    generator: sales_over_time
+    uses:
+    - sales_data
+    export:
+      format: gif
+      fps: 4
+      duration_seconds: 3
+      width_px: 600
+      height_px: 300

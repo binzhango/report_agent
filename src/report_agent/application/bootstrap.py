@@ -17,7 +17,7 @@ from report_agent.templates.engine import JinjaTemplateEngine
 from report_agent.templates.repository import LocalTemplateRepository
 
 
-def create_renderer() -> ReportRenderer:
+def create_renderer(*, office_backend=None) -> ReportRenderer:
     """Assemble the default template, content, compiler, and storage services."""
     template_engine = JinjaTemplateEngine()
     renderers = RendererRegistry(
@@ -29,6 +29,7 @@ def create_renderer() -> ReportRenderer:
         }
     )
     return ReportRenderer(
+        office_backend=office_backend,
         metadata_loader=MetadataLoader(),
         templates=LocalTemplateRepository(),
         renderers=renderers,

@@ -1,12 +1,13 @@
-"""Public Python API for template-based PDF reports.
+"""Public Python API for template-based PDF and Office reports.
 
-Render text, images, graph files, matplotlib figures, and DataFrames into PDFs.
+Render text, images, figures, tables, and encoded animations into reports.
 """
 
 from report_agent.application.bootstrap import create_renderer
 from report_agent.application.request import RenderRequest
 from report_agent.application.service import ReportRenderer
 from report_agent.models.inputs import (
+    AnimationInput,
     FigureInput,
     GraphInput,
     ImageInput,
@@ -16,6 +17,7 @@ from report_agent.models.inputs import (
 from report_agent.models.results import RenderResult
 
 __all__ = [
+    "AnimationInput",
     "FigureInput",
     "GraphInput",
     "ImageInput",

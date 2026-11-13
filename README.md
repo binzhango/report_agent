@@ -41,6 +41,30 @@ User and agent text is escaped as plain text. Blank lines preserve paragraphs.
 | `graph` | `FigureInput(Figure)` | Live matplotlib Figure exported as vector PDF |
 | `table` | `TableInput(DataFrame)` | Native LaTeX tables generated through pandas Styler |
 
+## Office output (experimental)
+
+The LibreOffice backend builds editable DOCX/XLSX and PPTX with embedded animated
+Matplotlib GIFs from complete Flat XML templates. Use metadata schema v2 for Office
+output; schema v1 retains the existing LaTeX/PDF workflow. See the
+[step-by-step LibreOffice template guide](docs/libreoffice-template-guide.md)
+to prepare a template, reuse a branded DOCX sample, and generate reports through
+Python or the CLI. The
+[Office report guide](docs/office-reports.md) covers configuration, examples,
+and current compatibility limits. LibreOffice is an external dependency only
+for Office jobs. Desktop PowerPoint playback still requires target-viewer review.
+
+Build the comprehensive Office examples, sharing the PDF example's source data:
+
+~~~sh
+uv run python examples/office_comprehensive/render.py
+~~~
+
+The result is an eight-page document, a nine-slide presentation with an embedded
+Matplotlib animation, and a seven-tab workbook with calculated summary formulas.
+See the [example walkthrough](examples/office_comprehensive/README.md) and
+[template authoring guide](docs/office-template-authoring.md) for page styles,
+page breaks, slide/frame definitions, tabs, formulas, and table styling.
+
 ## Setup with uv and a virtual environment
 
 Use Python 3.12 or later and [uv](https://docs.astral.sh/uv/). The repository's

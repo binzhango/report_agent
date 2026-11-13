@@ -30,6 +30,7 @@ class ContentResolver:
         *,
         sources: Mapping[str, DataSource],
         text_generator: AgentTextGenerator | None = None,
+        animation_generators=None,
         summary_max_columns: int = 20,
         summary_max_row_chars: int = 8192,
     ) -> None:
@@ -37,6 +38,7 @@ class ContentResolver:
             raise ValueError("summary_max_columns must be positive.")
         if summary_max_row_chars < 0:
             raise ValueError("summary_max_row_chars must be non-negative.")
+        self._animation_generators = animation_generators
         self._sources = dict(sources)
         self._text_generator = text_generator
         self._summary_max_columns = summary_max_columns
@@ -48,6 +50,7 @@ class ContentResolver:
         *,
         inputs: Mapping[str, ContentInput] | None = None,
         queries: Mapping[str, QuerySource] | None = None,
+        media_workspace=None,
     ) -> ResolutionResult:
         resolved = dict(inputs or {})
         queries = dict(queries or {})
@@ -100,6 +103,29 @@ class ContentResolver:
                             self._row_json(tables[dependency].head_rows)
                         )
                 resolved[name] = self._generate(definition, tables)
+            for name, definition in metadata.inputs.items():
+                if definition.source != "generator" or name in resolved:
+                    continue
+                if self._animation_generators is None or media_workspace is None:
+                    raise ValueError(
+                        "Animation generation needs registry and media_workspace."
+                    )
+                from report_agent.metadata.office import ExportOptions
+
+                tables = {}
+                for dependency in definition.uses:
+                    value = resolved.get(dependency)
+                    if not isinstance(value, TableInput):
+                        raise ValueError(
+                            f"Animation needs resolved table {dependency!r}."
+                        )
+                    tables[dependency] = value.data
+                resolved[name] = self._animation_generators.generate(
+                    definition.generator,
+                    tables,
+                    definition.export or ExportOptions(),
+                    media_workspace / name,
+                )
             return ResolutionResult(resolved)
         except Exception as exc:
             code = (

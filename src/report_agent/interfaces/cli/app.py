@@ -12,7 +12,7 @@ from report_agent.interfaces.cli.inputs import InputFileLoader
 from report_agent.models.inputs import TextInput
 
 app = typer.Typer(
-    help="Render LaTeX templates into PDF reports with metadata and runtime content.",
+    help="Render template-based PDF and Office reports.",
     no_args_is_help=True,
     add_completion=False,
 )
@@ -38,7 +38,10 @@ def render_report(
         Path, typer.Option("--metadata", "-m", help="JSON or YAML metadata.")
     ],
     output: Annotated[
-        Path, typer.Option("--output", "-o", help="Destination PDF path.")
+        Path,
+        typer.Option(
+            "--output", "-o", help="Destination PDF, DOCX, XLSX, or PPTX path."
+        ),
     ],
     text: Annotated[
         list[str] | None,
@@ -53,6 +56,10 @@ def render_report(
     ] = None,
     graph: Annotated[
         list[str] | None, typer.Option("--graph", help="Graph file as NAME=PATH.")
+    ] = None,
+    animation: Annotated[
+        list[str] | None,
+        typer.Option("--animation", help="Animation as NAME=GIF_PATH."),
     ] = None,
     inputs_file: Annotated[
         Path | None,
@@ -78,6 +85,7 @@ def render_report(
             ("table", table),
             ("image", image),
             ("graph", graph),
+            ("animation", animation),
         ]:
             for item in items or []:
                 name, separator, value = item.partition("=")
@@ -101,6 +109,6 @@ def render_report(
             f"{diagnostic.message}",
             err=True,
         )
-    if result.pdf_path is None:
+    if result.output_path is None:
         raise typer.Exit(1)
-    typer.echo(str(result.pdf_path))
+    typer.echo(str(result.output_path))

@@ -38,4 +38,14 @@ class TableInput:
     data: "DataFrame"
 
 
-type ContentInput = TextInput | ImageInput | GraphInput | FigureInput | TableInput
+@dataclass(frozen=True)
+class AnimationInput:
+    """Finite encoded animation and its static preview; paths must outlive rendering."""
+
+    path: Path
+    poster_path: Path
+
+
+type ContentInput = (
+    AnimationInput | TextInput | ImageInput | GraphInput | FigureInput | TableInput
+)

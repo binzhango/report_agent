@@ -1,0 +1,63 @@
+schema_version: 2
+id: comprehensive_pptx
+entrypoint: main.fodp
+document:
+  engine: libreoffice
+  format: pptx
+inputs:
+  channels_note:
+    type: text
+    max_chars: 3000
+  comparison:
+    type: table
+  disclaimer:
+    type: text
+    max_chars: 3000
+  financial:
+    type: table
+  financial_commentary:
+    type: text
+    max_chars: 3000
+  growth:
+    type: text
+    max_chars: 3000
+  logo:
+    type: image
+  next_steps:
+    type: text
+    max_chars: 3000
+  outlook:
+    type: text
+    max_chars: 3000
+  period:
+    type: text
+    max_chars: 3000
+  products:
+    type: table
+  regional_graph:
+    type: graph
+  revenue:
+    type: text
+    max_chars: 3000
+  revenue_animation:
+    type: animation
+    source: generator
+    generator: revenue_over_time
+    uses:
+    - animation_data
+    export:
+      format: gif
+      fps: 8
+      duration_seconds: 4.5
+      width_px: 1000
+      height_px: 400
+  service_chart:
+    type: graph
+  summary:
+    type: text
+    max_chars: 3000
+  trend:
+    type: graph
+  animation_data:
+    type: table
+    visible: false

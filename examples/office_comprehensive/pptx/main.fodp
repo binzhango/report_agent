@@ -1,0 +1,303 @@
+<?xml version='1.0' encoding='utf-8'?>
+<office:document xmlns:draw="urn:oasis:names:tc:opendocument:xmlns:drawing:1.0" xmlns:fo="urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0" xmlns:loext="urn:org:documentfoundation:names:experimental:office:xmlns:loext:1.0" xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0" xmlns:ra="urn:report-agent:template:1" xmlns:style="urn:oasis:names:tc:opendocument:xmlns:style:1.0" xmlns:svg="urn:oasis:names:tc:opendocument:xmlns:svg-compatible:1.0" xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0" xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0" office:version="1.3" office:mimetype="application/vnd.oasis.opendocument.presentation">
+  <office:font-face-decls>
+    <style:font-face style:name="DejaVu Sans" svg:font-family="DejaVu Sans" />
+  </office:font-face-decls>
+  <office:styles>
+    <style:style style:name="Header" style:family="table-cell">
+      <style:table-cell-properties fo:background-color="#18343D" fo:padding="0.16cm" fo:border="0.5pt solid #D9D9D9" style:vertical-align="middle" />
+      <style:paragraph-properties fo:text-align="left" />
+      <style:text-properties style:font-name="DejaVu Sans" fo:font-size="14pt" fo:color="#FFFFFF" fo:font-weight="bold" />
+      <loext:graphic-properties draw:fill="solid" draw:fill-color="#18343D" />
+    </style:style>
+    <style:style style:name="Cell" style:family="table-cell">
+      <style:table-cell-properties fo:background-color="#FFFFFF" fo:padding="0.16cm" fo:border="0.5pt solid #D9D9D9" style:vertical-align="middle" />
+      <style:paragraph-properties fo:text-align="left" />
+      <style:text-properties style:font-name="DejaVu Sans" fo:font-size="15pt" fo:color="#18343D" fo:font-weight="normal" />
+      <loext:graphic-properties draw:fill="solid" draw:fill-color="#FFFFFF" />
+    </style:style>
+    <style:style style:name="Alternate" style:family="table-cell">
+      <style:table-cell-properties fo:background-color="#F1F6F7" fo:padding="0.16cm" fo:border="0.5pt solid #D9D9D9" style:vertical-align="middle" />
+      <style:paragraph-properties fo:text-align="left" />
+      <style:text-properties style:font-name="DejaVu Sans" fo:font-size="15pt" fo:color="#18343D" fo:font-weight="normal" />
+      <loext:graphic-properties draw:fill="solid" draw:fill-color="#F1F6F7" />
+    </style:style>
+    <table:table-template table:name="Northstar">
+      <table:body table:style-name="Cell" />
+      <table:first-row table:style-name="Header" />
+      <table:odd-rows table:style-name="Alternate" />
+      <table:even-rows table:style-name="Cell" />
+    </table:table-template>
+  </office:styles>
+  <office:automatic-styles>
+    <style:page-layout style:name="SlideLayout">
+      <style:page-layout-properties fo:page-width="33.867cm" fo:page-height="19.05cm" style:print-orientation="landscape" />
+    </style:page-layout>
+    <style:style style:name="SlideTitle" style:family="paragraph">
+      <style:paragraph-properties fo:margin-top=".0cm" fo:margin-bottom="0cm" fo:line-height="125%" />
+      <style:text-properties style:font-name="DejaVu Sans" fo:font-size="30pt" fo:color="#18343D" fo:font-weight="bold" />
+    </style:style>
+    <style:style style:name="CoverTitle" style:family="paragraph">
+      <style:paragraph-properties fo:margin-top=".0cm" fo:margin-bottom="0cm" fo:line-height="125%" />
+      <style:text-properties style:font-name="DejaVu Sans" fo:font-size="42pt" fo:color="#18343D" fo:font-weight="bold" />
+    </style:style>
+    <style:style style:name="Body" style:family="paragraph">
+      <style:paragraph-properties fo:margin-top=".0cm" fo:margin-bottom=".3cm" fo:line-height="125%" />
+      <style:text-properties style:font-name="DejaVu Sans" fo:font-size="17pt" fo:color="#18343D" fo:font-weight="normal" />
+    </style:style>
+    <style:style style:name="Caption" style:family="paragraph">
+      <style:paragraph-properties fo:margin-top=".0cm" fo:margin-bottom="0cm" fo:line-height="125%" />
+      <style:text-properties style:font-name="DejaVu Sans" fo:font-size="11pt" fo:color="#5A6C73" fo:font-weight="normal" />
+    </style:style>
+    <style:style style:name="Kpi" style:family="paragraph">
+      <style:paragraph-properties fo:margin-top=".0cm" fo:margin-bottom="0cm" fo:line-height="125%" />
+      <style:text-properties style:font-name="DejaVu Sans" fo:font-size="34pt" fo:color="#087E8B" fo:font-weight="bold" />
+    </style:style>
+    <style:style style:name="TableText" style:family="paragraph">
+      <style:paragraph-properties fo:margin-top=".0cm" fo:margin-bottom="0cm" fo:line-height="125%" />
+      <style:text-properties style:font-name="DejaVu Sans" fo:font-size="15pt" fo:color="#18343D" fo:font-weight="normal" />
+    </style:style>
+    <style:style style:name="HeaderText" style:family="paragraph">
+      <style:paragraph-properties fo:margin-top=".0cm" fo:margin-bottom="0cm" fo:line-height="125%" />
+      <style:text-properties style:font-name="DejaVu Sans" fo:font-size="14pt" fo:color="#FFFFFF" fo:font-weight="bold" />
+    </style:style>
+    <style:style style:name="Frame" style:family="graphic">
+      <style:graphic-properties draw:stroke="none" draw:fill="none" fo:padding="0cm" draw:textarea-vertical-align="top" />
+    </style:style>
+    <style:style style:name="ReportTable" style:family="table">
+      <style:table-properties table:align="left" />
+    </style:style>
+    <style:style style:name="Slide" style:family="drawing-page">
+      <style:drawing-page-properties draw:fill="solid" draw:fill-color="#FFFFFF" />
+    </style:style>
+    <style:style style:name="Wide" style:family="table-column">
+      <style:table-column-properties style:column-width="7cm" />
+    </style:style>
+    <style:style style:name="Num" style:family="table-column">
+      <style:table-column-properties style:column-width="5.7cm" />
+    </style:style>
+    <style:style style:name="Channel" style:family="table-column">
+      <style:table-column-properties style:column-width="8cm" />
+    </style:style>
+    <style:style style:name="ChanNum" style:family="table-column">
+      <style:table-column-properties style:column-width="6.7cm" />
+    </style:style>
+    <style:style style:name="Group" style:family="table-column">
+      <style:table-column-properties style:column-width="6cm" />
+    </style:style>
+    <style:style style:name="Product" style:family="table-column">
+      <style:table-column-properties style:column-width="12cm" />
+    </style:style>
+    <style:style style:name="ProdNum" style:family="table-column">
+      <style:table-column-properties style:column-width="6cm" />
+    </style:style>
+  </office:automatic-styles>
+  <office:master-styles>
+    <style:master-page style:name="Standard" style:page-layout-name="SlideLayout" draw:style-name="Slide" />
+  </office:master-styles>
+  <office:body>
+    <office:presentation>
+      <draw:page draw:name="01 Cover" draw:style-name="Slide" draw:master-page-name="Standard">
+        <ra:image name="logo" x="2cm" y="1.5cm" width="7cm" height="1.4cm" />
+        <draw:frame draw:name="cover-title" draw:style-name="Frame" svg:x="2cm" svg:y="5cm" svg:width="28cm" svg:height="4cm">
+          <draw:text-box>
+            <text:p text:style-name="CoverTitle">Northstar quarterly
+business review</text:p>
+          </draw:text-box>
+        </draw:frame>
+        <draw:frame draw:name="period" draw:style-name="Frame" svg:x="2cm" svg:y="10cm" svg:width="27cm" svg:height="1cm">
+          <draw:text-box>
+            <text:p text:style-name="Body">
+              <ra:text name="period" />
+            </text:p>
+          </draw:text-box>
+        </draw:frame>
+        <draw:frame draw:name="cover-revenue" draw:style-name="Frame" svg:x="2cm" svg:y="12.5cm" svg:width="10cm" svg:height="2cm">
+          <draw:text-box>
+            <text:p text:style-name="Kpi">
+              <ra:text name="revenue" />
+            </text:p>
+          </draw:text-box>
+        </draw:frame>
+        <draw:frame draw:name="cover-growth" draw:style-name="Frame" svg:x="13cm" svg:y="13cm" svg:width="17cm" svg:height="1.5cm">
+          <draw:text-box>
+            <text:p text:style-name="Body">
+              <ra:text name="growth" />
+            </text:p>
+          </draw:text-box>
+        </draw:frame>
+        <draw:frame draw:name="cover-note" draw:style-name="Frame" svg:x="2cm" svg:y="17.2cm" svg:width="29cm" svg:height="1cm">
+          <draw:text-box>
+            <text:p text:style-name="Caption">Illustrative operating results   Leadership review</text:p>
+          </draw:text-box>
+        </draw:frame>
+      </draw:page>
+      <draw:page draw:name="02 Executive overview" draw:style-name="Slide" draw:master-page-name="Standard">
+        <draw:frame draw:name="title-2" draw:style-name="Frame" svg:x="1.8cm" svg:y="1.1cm" svg:width="30cm" svg:height="2cm">
+          <draw:text-box>
+            <text:p text:style-name="SlideTitle">Revenue reached $4.77 million</text:p>
+          </draw:text-box>
+        </draw:frame>
+        <draw:frame draw:name="summary" draw:style-name="Frame" svg:x="1.8cm" svg:y="3.5cm" svg:width="29.8cm" svg:height="3cm">
+          <draw:text-box>
+            <text:p text:style-name="Body">
+              <ra:text name="summary" />
+            </text:p>
+          </draw:text-box>
+        </draw:frame>
+        <ra:image name="trend" x="2cm" y="7cm" width="29.5cm" height="9.3cm" />
+        <draw:frame draw:name="footer-2" draw:style-name="Frame" svg:x="1.8cm" svg:y="18cm" svg:width="29cm" svg:height="0.5cm">
+          <draw:text-box>
+            <text:p text:style-name="Caption">Northstar   Q3 2026   02</text:p>
+          </draw:text-box>
+        </draw:frame>
+      </draw:page>
+      <draw:page draw:name="03 Regional performance" draw:style-name="Slide" draw:master-page-name="Standard">
+        <draw:frame draw:name="title-3" draw:style-name="Frame" svg:x="1.8cm" svg:y="1.1cm" svg:width="30cm" svg:height="2cm">
+          <draw:text-box>
+            <text:p text:style-name="SlideTitle">Every region grew from Q2</text:p>
+          </draw:text-box>
+        </draw:frame>
+        <draw:frame draw:name="financial-frame" svg:x="1.8cm" svg:y="4cm" svg:width="29.8cm" svg:height="7cm">
+          <ra:table name="financial" table-style-name="ReportTable" column-style-names="Wide Num Num Num Num" header-cell-style-name="Header" body-cell-style-name="Cell" alternate-cell-style-name="Alternate" header-paragraph-style-name="HeaderText" body-paragraph-style-name="TableText" table-template-name="Northstar" />
+        </draw:frame>
+        <draw:frame draw:name="financial-commentary" draw:style-name="Frame" svg:x="1.8cm" svg:y="12cm" svg:width="29.8cm" svg:height="4cm">
+          <draw:text-box>
+            <text:p text:style-name="Body">
+              <ra:text name="financial_commentary" />
+            </text:p>
+          </draw:text-box>
+        </draw:frame>
+        <draw:frame draw:name="footer-3" draw:style-name="Frame" svg:x="1.8cm" svg:y="18cm" svg:width="29cm" svg:height="0.5cm">
+          <draw:text-box>
+            <text:p text:style-name="Caption">Northstar   Q3 2026   03</text:p>
+          </draw:text-box>
+        </draw:frame>
+      </draw:page>
+      <draw:page draw:name="04 Regional mix" draw:style-name="Slide" draw:master-page-name="Standard">
+        <draw:frame draw:name="title-4" draw:style-name="Frame" svg:x="1.8cm" svg:y="1.1cm" svg:width="30cm" svg:height="2cm">
+          <draw:text-box>
+            <text:p text:style-name="SlideTitle">North America contributed 41.5% of revenue</text:p>
+          </draw:text-box>
+        </draw:frame>
+        <ra:image name="regional_graph" x="2cm" y="3.8cm" width="28cm" height="11cm" />
+        <draw:frame draw:name="regional-outlook" draw:style-name="Frame" svg:x="2cm" svg:y="15.5cm" svg:width="29cm" svg:height="1.5cm">
+          <draw:text-box>
+            <text:p text:style-name="Body">
+              <ra:text name="outlook" />
+            </text:p>
+          </draw:text-box>
+        </draw:frame>
+        <draw:frame draw:name="footer-4" draw:style-name="Frame" svg:x="1.8cm" svg:y="18cm" svg:width="29cm" svg:height="0.5cm">
+          <draw:text-box>
+            <text:p text:style-name="Caption">Northstar   Q3 2026   04</text:p>
+          </draw:text-box>
+        </draw:frame>
+      </draw:page>
+      <draw:page draw:name="05 Acquisition channels" draw:style-name="Slide" draw:master-page-name="Standard">
+        <draw:frame draw:name="title-5" draw:style-name="Frame" svg:x="1.8cm" svg:y="1.1cm" svg:width="30cm" svg:height="2cm">
+          <draw:text-box>
+            <text:p text:style-name="SlideTitle">Direct sales generated $2.63 million</text:p>
+          </draw:text-box>
+        </draw:frame>
+        <draw:frame draw:name="comparison-frame" svg:x="1.8cm" svg:y="4.3cm" svg:width="28.2cm" svg:height="5.8cm">
+          <ra:table name="comparison" table-style-name="ReportTable" column-style-names="Channel ChanNum ChanNum ChanNum" header-cell-style-name="Header" body-cell-style-name="Cell" alternate-cell-style-name="Alternate" header-paragraph-style-name="HeaderText" body-paragraph-style-name="TableText" table-template-name="Northstar" />
+        </draw:frame>
+        <draw:frame draw:name="channels-note" draw:style-name="Frame" svg:x="1.8cm" svg:y="12cm" svg:width="29.8cm" svg:height="3cm">
+          <draw:text-box>
+            <text:p text:style-name="Body">
+              <ra:text name="channels_note" />
+            </text:p>
+          </draw:text-box>
+        </draw:frame>
+        <draw:frame draw:name="footer-5" draw:style-name="Frame" svg:x="1.8cm" svg:y="18cm" svg:width="29cm" svg:height="0.5cm">
+          <draw:text-box>
+            <text:p text:style-name="Caption">Northstar   Q3 2026   05</text:p>
+          </draw:text-box>
+        </draw:frame>
+      </draw:page>
+      <draw:page draw:name="06 Service quality" draw:style-name="Slide" draw:master-page-name="Standard">
+        <draw:frame draw:name="title-6" draw:style-name="Frame" svg:x="1.8cm" svg:y="1.1cm" svg:width="30cm" svg:height="2cm">
+          <draw:text-box>
+            <text:p text:style-name="SlideTitle">Service attainment improved in every region</text:p>
+          </draw:text-box>
+        </draw:frame>
+        <ra:image name="service_chart" x="1.8cm" y="4cm" width="30cm" height="11.5cm" />
+        <draw:frame draw:name="correlation-note" draw:style-name="Frame" svg:x="1.8cm" svg:y="16.2cm" svg:width="29cm" svg:height="0.7cm">
+          <draw:text-box>
+            <text:p text:style-name="Caption">Correlation coefficients are illustrative and do not establish causation.</text:p>
+          </draw:text-box>
+        </draw:frame>
+        <draw:frame draw:name="footer-6" draw:style-name="Frame" svg:x="1.8cm" svg:y="18cm" svg:width="29cm" svg:height="0.5cm">
+          <draw:text-box>
+            <text:p text:style-name="Caption">Northstar   Q3 2026   06</text:p>
+          </draw:text-box>
+        </draw:frame>
+      </draw:page>
+      <draw:page draw:name="07 Product portfolio" draw:style-name="Slide" draw:master-page-name="Standard">
+        <draw:frame draw:name="title-7" draw:style-name="Frame" svg:x="1.8cm" svg:y="1.1cm" svg:width="30cm" svg:height="2cm">
+          <draw:text-box>
+            <text:p text:style-name="SlideTitle">Six offers contributed to quarterly revenue</text:p>
+          </draw:text-box>
+        </draw:frame>
+        <draw:frame draw:name="products-frame" svg:x="1.8cm" svg:y="4cm" svg:width="30cm" svg:height="9.5cm">
+          <ra:table name="products" table-style-name="ReportTable" column-style-names="Group Product ProdNum ProdNum" header-cell-style-name="Header" body-cell-style-name="Cell" alternate-cell-style-name="Alternate" header-paragraph-style-name="HeaderText" body-paragraph-style-name="TableText" table-template-name="Northstar" />
+        </draw:frame>
+        <draw:frame draw:name="missing-rate" draw:style-name="Frame" svg:x="1.8cm" svg:y="15.5cm" svg:width="29cm" svg:height="1cm">
+          <draw:text-box>
+            <text:p text:style-name="Body">Workflow Plus has no renewal estimate yet. Missing values are shown as --.</text:p>
+          </draw:text-box>
+        </draw:frame>
+        <draw:frame draw:name="footer-7" draw:style-name="Frame" svg:x="1.8cm" svg:y="18cm" svg:width="29cm" svg:height="0.5cm">
+          <draw:text-box>
+            <text:p text:style-name="Caption">Northstar   Q3 2026   07</text:p>
+          </draw:text-box>
+        </draw:frame>
+      </draw:page>
+      <draw:page draw:name="08 Revenue animation" draw:style-name="Slide" draw:master-page-name="Standard">
+        <draw:frame draw:name="title-8" draw:style-name="Frame" svg:x="1.8cm" svg:y="1.1cm" svg:width="30cm" svg:height="2cm">
+          <draw:text-box>
+            <text:p text:style-name="SlideTitle">Actual revenue advanced ahead of plan</text:p>
+          </draw:text-box>
+        </draw:frame>
+        <ra:animation name="revenue_animation" x="2cm" y="4cm" width="29.5cm" height="11cm" />
+        <draw:frame draw:name="animation-note" draw:style-name="Frame" svg:x="2cm" svg:y="16cm" svg:width="29cm" svg:height="1cm">
+          <draw:text-box>
+            <text:p text:style-name="Caption">Animated monthly revenue through September. Plan is shown as a dashed line.</text:p>
+          </draw:text-box>
+        </draw:frame>
+        <draw:frame draw:name="footer-8" draw:style-name="Frame" svg:x="1.8cm" svg:y="18cm" svg:width="29cm" svg:height="0.5cm">
+          <draw:text-box>
+            <text:p text:style-name="Caption">Northstar   Q3 2026   08</text:p>
+          </draw:text-box>
+        </draw:frame>
+      </draw:page>
+      <draw:page draw:name="09 Outlook" draw:style-name="Slide" draw:master-page-name="Standard">
+        <draw:frame draw:name="title-9" draw:style-name="Frame" svg:x="1.8cm" svg:y="1.1cm" svg:width="30cm" svg:height="2cm">
+          <draw:text-box>
+            <text:p text:style-name="SlideTitle">Preserve service quality as coverage expands</text:p>
+          </draw:text-box>
+        </draw:frame>
+        <draw:frame draw:name="next-steps" draw:style-name="Frame" svg:x="1.8cm" svg:y="4cm" svg:width="29.5cm" svg:height="9cm">
+          <draw:text-box>
+            <text:p text:style-name="Body">
+              <ra:text name="next_steps" />
+            </text:p>
+          </draw:text-box>
+        </draw:frame>
+        <draw:frame draw:name="disclaimer" draw:style-name="Frame" svg:x="1.8cm" svg:y="15.8cm" svg:width="29.5cm" svg:height="1.3cm">
+          <draw:text-box>
+            <text:p text:style-name="Caption">
+              <ra:text name="disclaimer" />
+            </text:p>
+          </draw:text-box>
+        </draw:frame>
+        <draw:frame draw:name="footer-9" draw:style-name="Frame" svg:x="1.8cm" svg:y="18cm" svg:width="29cm" svg:height="0.5cm">
+          <draw:text-box>
+            <text:p text:style-name="Caption">Northstar   Q3 2026   09</text:p>
+          </draw:text-box>
+        </draw:frame>
+      </draw:page>
+    </office:presentation>
+  </office:body>
+</office:document>

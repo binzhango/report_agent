@@ -1,0 +1,72 @@
+schema_version: 2
+id: comprehensive_docx
+entrypoint: main.fodt
+document:
+  engine: libreoffice
+  format: docx
+inputs:
+  assumptions:
+    type: text
+    max_chars: 3000
+  channels_note:
+    type: text
+    max_chars: 3000
+  cohort_note:
+    type: text
+    max_chars: 3000
+  cohorts:
+    type: table
+  comparison:
+    type: table
+  disclaimer:
+    type: text
+    max_chars: 3000
+  diverging:
+    type: table
+  financial:
+    type: table
+  financial_commentary:
+    type: text
+    max_chars: 3000
+  growth:
+    type: text
+    max_chars: 3000
+  logo:
+    type: image
+  margin:
+    type: text
+    max_chars: 3000
+  next_steps:
+    type: text
+    max_chars: 3000
+  outlook:
+    type: text
+    max_chars: 3000
+  period:
+    type: text
+    max_chars: 3000
+  products:
+    type: table
+  regional_graph:
+    type: graph
+  report_purpose:
+    type: text
+    max_chars: 3000
+  retention:
+    type: text
+    max_chars: 3000
+  revenue:
+    type: text
+    max_chars: 3000
+  sequential:
+    type: table
+  service_chart:
+    type: graph
+  summary:
+    type: text
+    max_chars: 3000
+  title:
+    type: text
+    max_chars: 3000
+  trend:
+    type: graph

@@ -4,13 +4,14 @@ from collections.abc import Mapping
 from pathlib import Path
 
 from report_agent.metadata.models import TemplateMetadata
+from report_agent.metadata.office import OfficeMetadata
 from report_agent.metadata.parsers import (
     JsonMetadataParser,
     MetadataParser,
     YamlMetadataParser,
 )
 
-type MetadataSource = Path | Mapping[str, object] | TemplateMetadata
+type MetadataSource = Path | Mapping[str, object] | TemplateMetadata | OfficeMetadata
 
 
 class MetadataLoader:
@@ -25,12 +26,14 @@ class MetadataLoader:
             }
         )
 
-    def load(self, source: MetadataSource) -> TemplateMetadata:
-        if isinstance(source, TemplateMetadata):
+    def load(self, source: MetadataSource) -> TemplateMetadata | OfficeMetadata:
+        if isinstance(source, (TemplateMetadata, OfficeMetadata)):
             return source
         if isinstance(source, Path):
             parser = self._parsers.get(source.suffix.lower())
             if parser is None:
                 raise ValueError(f"Unsupported metadata extension: {source.suffix}")
             source = parser.parse(source.read_text(encoding="utf-8"))
-        return TemplateMetadata.model_validate(source)
+        return (
+            OfficeMetadata if source.get("schema_version") == 2 else TemplateMetadata
+        ).model_validate(source)

@@ -12,6 +12,10 @@ class FigureExporter(Protocol):
 
 
 class MatplotlibFigureExporter:
+    def __init__(self, format="pdf", dpi=150):
+        self.format = format
+        self.dpi = dpi
+
     def export(self, figure: "Figure", destination: Path) -> Path:
         """Export without closing the figure or changing its plot layout.
 
@@ -49,8 +53,11 @@ class MatplotlibFigureExporter:
         try:
             figure.savefig(
                 destination,
-                format="pdf",
-                metadata={"CreationDate": None, "ModDate": None},
+                format=self.format,
+                dpi=self.dpi,
+                metadata={"CreationDate": None, "ModDate": None}
+                if self.format == "pdf"
+                else None,
             )
         finally:
             figure.set_size_inches(size, forward=False)

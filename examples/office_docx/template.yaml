@@ -1,0 +1,13 @@
+schema_version: 2
+id: office_docx
+entrypoint: main.fodt
+document:
+  engine: libreoffice
+  format: docx
+inputs:
+  title:
+    type: text
+  summary:
+    type: text
+  sales:
+    type: table
