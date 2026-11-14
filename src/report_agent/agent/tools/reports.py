@@ -8,6 +8,7 @@ from zoneinfo import ZoneInfo
 from langchain_core.tools import tool
 
 from report_agent.agent.catalog import catalog_context
+from report_agent.agent.errors import public_tool_error
 from report_agent.definitions.models import ReportDefinition
 from report_agent.resolution.models import QuerySource
 
@@ -19,7 +20,19 @@ def build_tools(session, onboarding, sources):
         try:
             return fn()
         except Exception as exc:
-            return {"error": str(exc), "kind": type(exc).__name__}
+            return public_tool_error(exc)
+
+    def preview(reference, parameters, sample_tables):
+        result = onboarding.preview(session, reference, parameters, sample_tables)
+        # Renderer diagnostics can contain exception text and local paths. Keep
+        # machine-readable repair codes; full details remain in local run artifacts.
+        return {
+            **result,
+            "diagnostics": [
+                {key: item[key] for key in ("stage", "code", "severity") if key in item}
+                for item in result.get("diagnostics", [])
+            ],
+        }
 
     @tool
     def report_context() -> dict:
@@ -88,9 +101,7 @@ def build_tools(session, onboarding, sources):
         With sample_tables omitted, fetch actual data through configured connectors.
         Show previews to the user before suggesting the Accept template button.
         """
-        return attempt(
-            lambda: onboarding.preview(session, reference, parameters, sample_tables)
-        )
+        return attempt(lambda: preview(reference, parameters, sample_tables))
 
     @tool
     def rendered_examples(output_format: str, topic: str) -> list[dict]:
@@ -106,41 +117,7 @@ def build_tools(session, onboarding, sources):
         for preset in catalog_context():
 
             def generate(preset=preset):
-                rows = {
-                    "executive": [
-                        {"Measure": "Delivery", "Example result": "On schedule"},
-                        {"Measure": "Budget", "Example result": "Within plan"},
-                    ],
-                    "project": [
-                        {
-                            "Milestone": "Design review",
-                            "Owner": "Maya",
-                            "Status": "Complete",
-                        },
-                        {
-                            "Milestone": "Pilot launch",
-                            "Owner": "Omar",
-                            "Status": "In progress",
-                        },
-                        {
-                            "Milestone": "Team handover",
-                            "Owner": "Elena",
-                            "Status": "Planned",
-                        },
-                    ],
-                    "research": [
-                        {
-                            "Observation": "Response time",
-                            "Evidence": "Example survey",
-                            "Next step": "Validate findings",
-                        },
-                        {
-                            "Observation": "Coverage",
-                            "Evidence": "Example review",
-                            "Next step": "Expand sample",
-                        },
-                    ],
-                }[preset["id"]]
+                rows = preset["demo_rows"]
                 definition = ReportDefinition.model_validate(
                     {
                         "id": preset["id"],
@@ -181,7 +158,7 @@ def build_tools(session, onboarding, sources):
                 return {
                     "name": preset["name"],
                     "description": preset["description"],
-                    **onboarding.preview(session, reference, {}, {"section_1": rows}),
+                    **preview(reference, {}, {"section_1": rows}),
                 }
 
             results.append(attempt(generate))

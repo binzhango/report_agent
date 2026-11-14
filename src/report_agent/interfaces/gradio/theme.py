@@ -3,7 +3,9 @@
 CSS = """
 body, .gradio-container { background: #faf9f6 !important; color: #282824; }
 .gradio-container { max-width: 1100px !important; width: 100% !important;
- box-sizing: border-box !important; padding: 12px 24px 20px !important; }
+ box-sizing: border-box !important; padding: 12px 24px 20px !important;
+ margin-inline: auto !important; }
+.gradio-container .main { padding-inline: 0 !important; }
 #topbar { align-items: center; border-bottom: 1px solid #e7e5df;
  padding: 8px 0 16px; margin-bottom: 20px; }
 .wordmark { font-size: 14px; color: #32322f; letter-spacing: -.02em; }
@@ -17,12 +19,16 @@ body, .gradio-container { background: #faf9f6 !important; color: #282824; }
 #welcome h1 { font: 400 clamp(28px, 4vw, 38px) Georgia, serif;
  letter-spacing: -.035em; color: #37352f; margin-bottom: 14px; }
 #welcome p { font-size: 15px; line-height: 1.7; }
-.chat-event { min-width: 0 !important; gap: 6px !important; padding: 12px 0; }
+.chat-event { min-width: 0 !important; min-height: 0 !important;
+ flex: 0 0 auto !important; height: auto !important;
+ gap: 6px !important; padding: 12px 0; }
+.chat-event > .block { flex: 0 0 auto !important; min-height: 0 !important; }
 .chat-event p, .chat-event li { font-size: 14px; line-height: 1.75; }
 .speaker p { font-size: 11px !important; font-weight: 600; color: #868277;
  letter-spacing: .02em; margin-bottom: 4px; }
-.from-user { background: #efede7; border-radius: 16px; padding: 14px 20px;
- margin-left: auto; max-width: 88%; width: fit-content !important; }
+.from-user { background: #efede7; border-radius: 16px; padding: 10px 16px;
+ margin-left: auto; max-width: min(88%, 42rem); width: fit-content !important; }
+.from-user .prose p { margin: 0; }
 .from-assistant { padding-right: 18px; }
 .event-report, .event-parameters { border: 1px solid #e4e1d9;
  background: #fff; border-radius: 14px; padding: 18px; }
@@ -31,11 +37,11 @@ body, .gradio-container { background: #faf9f6 !important; color: #282824; }
 .activity-line p { font-size: 12px !important; color: #8a867a; }
 #composer-shell { position: sticky; bottom: 10px; z-index: 5;
  background: #fff; border: 1px solid #dedbd3; border-radius: 20px;
- padding: 14px 16px 8px; box-shadow: 0 5px 24px #3932220a; gap: 8px; }
+ padding: 10px 14px 6px; box-shadow: 0 5px 24px #3932220a; gap: 4px; }
 #composer { border: none !important; background: white !important;
  padding: 2px 0 !important; box-shadow: none; }
 #composer textarea { background: transparent; border: 0; box-shadow: none;
- font-size: 15px; padding: 8px 2px; background-color: white !important; }
+ font-size: 15px; padding: 6px 2px; background-color: white !important; }
 #starter-buttons { gap: 6px; }
 #starter-buttons button, #attach-toggle, #saved-toggle {
  flex: 0 0 auto !important; width: auto !important;

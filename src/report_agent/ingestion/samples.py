@@ -4,6 +4,7 @@ import re
 from pathlib import Path
 from zipfile import BadZipFile, ZipFile
 
+from report_agent.ingestion.archives import validate_members
 from report_agent.templates.odf import parse
 
 MAX_UPLOAD_BYTES = 10 * 1024 * 1024
@@ -61,11 +62,7 @@ def _pdf(path):
 def _office(path, suffix):
     try:
         with ZipFile(path) as archive:
-            if (
-                len(archive.infolist()) > 3000
-                or sum(i.file_size for i in archive.infolist()) > 50 * 1024 * 1024
-            ):
-                raise ValueError("Expanded sample is too large.")
+            validate_members(archive)
 
             def read(name):
                 if archive.getinfo(name).file_size > MAX_UPLOAD_BYTES:

@@ -5,6 +5,22 @@ directory. The framework discovers skills and reads their instructions on demand
 there is no custom skill loader. The application exposes report-specific tools,
 and the existing rendering engine continues to produce the final files.
 
+The [system prompt](../src/report_agent/agent/prompt.py) defines Report Studio's role,
+workflow routing, required next steps, and failure recovery. The agent factory passes
+it to Deep Agents through `system_prompt`; `skills=["/"]` still uses the configured
+skills backend for normal framework-managed skill discovery. Skills provide the
+detailed procedures within each workflow.
+
+For a known report type without a selected design, the prompt directs the agent to
+establish audience and format, render examples, and get a design choice before
+asking detailed data-binding questions. Uploaded references, agreed structures,
+resumed drafts, and accepted reports have their own paths. A missing converter
+blocks rendering: the agent should explain it and offer recovery or an explicitly
+agreed text-only outline, rather than silently advancing past design selection.
+These are model instructions, not a new application state machine or a guarantee
+of identical responses. Restart the service and start a new chat when evaluating
+prompt changes; existing agent instances retain the prompt used at creation.
+
 ## Start the service
 
 ```sh
@@ -96,6 +112,17 @@ not prompt or contact the model. See [report definitions](report-definitions.md)
 
 ## Storage and deployment
 
+This is a **single-user local service**. Every chat shares the same configured
+sources, uploaded workbooks, and report library, including uploads from earlier
+chats. Chat IDs separate conversation state, not data access. Do not expose one
+instance to multiple users expecting private workspaces. Multi-user deployment
+requires authentication and per-user source, storage, and template isolation.
+
+Gradio serializes report interactions with a shared concurrency group limited to
+one worker. Registry and per-session locks protect lookup and turns; shared source
+mutation and UI snapshots rely on that serialized execution. The service is not a
+general thread-safe API for independent concurrent callers.
+
 `report_library/drafts/` contains working bundles. Accepted bundles are stored at
 `report_library/accepted/<id>/v<N>/` with `report.yaml`, engine metadata/source, and
 a sample report. Run records and artifacts are under `output/runs/<run-id>/`.
@@ -131,6 +158,11 @@ necessary; length/row limits are not a complete layout-quality guarantee.
 The application has no generic shell or delegation tool. Domain tools perform
 template compilation, query execution, preview generation, and storage. Model
 execution is bounded; validation and rendering are deterministic.
+Harness policy is registered once per model at service initialization (or lazily
+for direct agent construction), explicitly excluding `task` and filesystem writes.
+Tool failures return fixed public messages and structured validation fields;
+exception strings and renderer diagnostic messages stay out of model responses.
+Full renderer diagnostics remain in local run artifacts for operator inspection.
 
 ## Verification
 

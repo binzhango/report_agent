@@ -46,6 +46,8 @@ retain the extra with `uv run --extra parquet ...`.
 Use Deep Agents and Gradio to build a reusable report through conversation, upload
 a PDF/DOCX/PPTX/XLSX sample, or choose a rendered example. Accept the template once;
 later runs reuse its content/layout and ask only for runtime parameter confirmation.
+The Gradio service is single-user: all chats share uploaded data and the report
+library. It does not isolate data between users.
 
 ```sh
 uv sync --locked --extra agent

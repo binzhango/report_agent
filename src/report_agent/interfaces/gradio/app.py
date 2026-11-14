@@ -48,9 +48,13 @@ def create_app(service):
     kit = Path("examples/conversations").resolve()
 
     def get_session(key):
-        if key is None or key not in service.sessions:
-            key = service.new_session()
-        return key, service.sessions[key]
+        if key is not None:
+            try:
+                return key, service.get_session(key)
+            except KeyError:
+                pass
+        key = service.new_session()
+        return key, service.get_session(key)
 
     def view(key, status="", *, busy=False, user_message=None):
         key, session = get_session(key)
@@ -106,7 +110,7 @@ def create_app(service):
         yield view(key, "Reading your sample and its structure…", busy=True)
         try:
             sample = service.upload_sample(key, path)
-            session = service.sessions[key]
+            session = service.get_session(key)
             session.pending = None
             session.history.extend(
                 [
@@ -138,7 +142,7 @@ def create_app(service):
             from report_agent.connectors.registry import describe_source
 
             details = describe_source(service.sources[connection])
-            session = service.sessions[key]
+            session = service.get_session(key)
             session.pending = None
             columns = ", ".join(details.get("columns", {}))
             session.history.extend(
@@ -275,7 +279,7 @@ def create_app(service):
                     classes = ["chat-event", "event-" + kind]
                     if kind == "message":
                         classes.append("from-" + event["role"])
-                    with gr.Column(key=event_id, elem_classes=classes):
+                    with gr.Column(key=event_id, elem_classes=classes, scale=0):
                         if kind == "message":
                             gr.Markdown(
                                 "You" if event["role"] == "user" else "◈ Report Studio",
@@ -374,7 +378,8 @@ def create_app(service):
             message = gr.Textbox(
                 label="Message",
                 show_label=False,
-                lines=2,
+                lines=1,
+                max_lines=6,
                 placeholder="Describe a report or ask for a change…",
                 elem_id="composer",
             )

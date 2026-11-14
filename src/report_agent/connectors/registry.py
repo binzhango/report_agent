@@ -54,6 +54,9 @@ def describe_source(source):
         if source.path.suffix.lower() == ".csv":
             frame = pd.read_csv(source.path, nrows=100)
         else:
+            from report_agent.ingestion.archives import validate_archive
+
+            validate_archive(source.path)
             with pd.ExcelFile(source.path, engine="openpyxl") as workbook:
                 sheets = workbook.sheet_names[:30]
                 frame = pd.read_excel(workbook, sheet_name=0, nrows=100)

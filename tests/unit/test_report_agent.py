@@ -23,6 +23,7 @@ ROOT = Path(__file__).resolve().parents[2]
 
 def test_framework_loads_skills_and_keeps_history(monkeypatch, tmp_path):
     captured = []
+    bound_tools = []
     responses = iter(
         [
             AIMessage(
@@ -46,6 +47,7 @@ def test_framework_loads_skills_and_keeps_history(monkeypatch, tmp_path):
 
     def generate(self, messages, **kwargs):
         captured.append(messages)
+        bound_tools.extend(t["function"]["name"] for t in kwargs.get("tools", []))
         return ChatResult(generations=[ChatGeneration(message=next(responses))])
 
     monkeypatch.setattr(ChatOpenAI, "_generate", generate)
@@ -85,6 +87,8 @@ def test_framework_loads_skills_and_keeps_history(monkeypatch, tmp_path):
     )
     assert len(second["messages"]) > len(first["messages"])
     assert any(m.content == "Monthly sales." for m in captured[-1])
+    assert "report_context" in bound_tools
+    assert not {"task", "execute", "write_file", "edit_file"} & set(bound_tools)
 
 
 def test_frontend_builds_without_model_call_and_sessions_are_separate(
@@ -240,7 +244,7 @@ def test_uploads_are_immediate_and_do_not_require_a_model(tmp_path):
     assert not service.agents
 
 
-def test_sql_details_are_shown_only_when_requested(tmp_path):
+def test_fenced_sql_is_shown_only_when_requested_without_removing_prose(tmp_path):
     config = AgentConfig("test-model", ROOT / ".agents/skills")
     store = ReportStore(tmp_path / "library")
 
@@ -251,7 +255,8 @@ def test_sql_details_are_shown_only_when_requested(tmp_path):
                     AIMessage(
                         content=(
                             "Report preview is ready.\n"
-                            "- Query: `SELECT revenue FROM sales`\n"
+                            "Select the region you want from your workbook.\n"
+                            "```sql\nSELECT revenue FROM sales\n```\n"
                             "Please review the report."
                         )
                     )
@@ -267,6 +272,10 @@ def test_sql_details_are_shown_only_when_requested(tmp_path):
     key = service.new_session()
     service.send(key, "Build my report")
     assert "SELECT" not in service.sessions[key].history[-1]["content"]
+    assert (
+        "Select the region you want from your workbook."
+        in (service.sessions[key].history[-1]["content"])
+    )
     assert "Please review" in service.sessions[key].history[-1]["content"]
     service.send(key, "Show the SQL")
     assert "SELECT revenue FROM sales" in service.sessions[key].history[-1]["content"]

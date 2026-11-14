@@ -4,6 +4,8 @@ from pathlib import Path
 
 import pandas as pd
 
+from report_agent.ingestion.archives import validate_archive
+
 
 class FileSource:
     def __init__(self, path: Path, *, filters=None):
@@ -11,11 +13,14 @@ class FileSource:
         self.filters = filters or {}
 
     def fetch(self, source):
+        if source.params.keys() - self.filters.keys():
+            raise ValueError("File parameters require configured column filters.")
         if self.path.stat().st_size > 20 * 1024 * 1024:
             raise ValueError("Data files must be no larger than 20 MiB.")
         if self.path.suffix.lower() == ".csv":
             frame = pd.read_csv(self.path, nrows=100001)
         elif self.path.suffix.lower() == ".xlsx":
+            validate_archive(self.path)
             frame = pd.read_excel(
                 self.path,
                 sheet_name=0 if source.query == "data" else source.query,
@@ -26,8 +31,6 @@ class FileSource:
             raise ValueError("File sources support CSV and XLSX.")
         if len(frame) > 100000:
             raise ValueError("Data file exceeds 100,000 rows; use a database source.")
-        if source.params.keys() - self.filters.keys():
-            raise ValueError("File parameters require configured column filters.")
         for name, value in source.params.items():
             rule = self.filters[name]
             series = frame[rule["column"]]

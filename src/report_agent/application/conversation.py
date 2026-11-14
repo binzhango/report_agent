@@ -20,12 +20,25 @@ class EmptyModelResponse(ValueError):
 
 
 class ConversationService:
+    """Single-user local service, not a tenant-isolated session store.
+
+    Gradio serializes mutations with report-interactions/concurrency_limit=1.
+    The registry lock protects session lookup/lifecycle; session.lock serializes
+    each turn (including its model call). Progress snapshots run on that same
+    worker. Shared source registries and UI snapshots rely on serialized UI
+    mutations; callers must not treat this as a general concurrent web service.
+    """
+
     def __init__(self, config, onboarding, sources, *, agent_factory=None):
         self.config, self.onboarding, self.sources = config, onboarding, sources
         self.sessions, self.agents = {}, {}
         self.source_labels = {}
         self.lock = Lock()
         self.agent_factory = agent_factory
+        if agent_factory is None:
+            from report_agent.agent.factory import initialize_harness
+
+            initialize_harness(config.model)
         for path in (onboarding.store.root / "sources").glob("*/source.json"):
             data = json.loads(path.read_text())
             sources[data["name"]] = FileSource(
@@ -37,8 +50,8 @@ class ConversationService:
 
     def new_session(self):
         session = Onboarding()
-        session.source_labels.update(self.source_labels)
         with self.lock:
+            session.source_labels.update(self.source_labels)
             self.sessions[session.id] = session
         return session.id
 
@@ -47,8 +60,12 @@ class ConversationService:
             self.agents.pop(session_id, None)
             self.sessions.pop(session_id, None)
 
+    def get_session(self, session_id):
+        with self.lock:
+            return self.sessions[session_id]
+
     def send(self, session_id, message, *, display_message=None, progress=None):
-        session = self.sessions[session_id]
+        session = self.get_session(session_id)
         if not message.strip() or len(message) > 12000:
             raise ValueError("Enter a message of 1–12,000 characters.")
         with session.lock:
@@ -121,36 +138,44 @@ class ConversationService:
             response = str(response)
             if not response.strip():
                 raise EmptyModelResponse("Model returned no text.")
-            for reference, name in labels.items():
-                response = response.replace(reference, name)
+            if labels:
+                # One pass prevents prefix collisions and replacements inside names.
+                pattern = "|".join(
+                    re.escape(r) for r in sorted(labels, key=len, reverse=True)
+                )
+                response = re.sub(
+                    rf"(?<![\w/-])(?:{pattern})(?![\w/-])",
+                    lambda match: labels[match.group()],
+                    response,
+                )
             if not re.search(r"\bsql\b|show.*quer|inspect.*quer", message, re.I):
                 response = re.sub(
-                    r"```(?:sql)?\s*(?:SELECT|WITH)\b.*?```",
+                    r"```sql[ \t]*\r?\n.*?```",
                     "",
                     response,
                     flags=re.I | re.S,
-                )
-                response = "\n".join(
-                    line
-                    for line in response.splitlines()
-                    if not re.search(r"\bSELECT\s+.+?\s+FROM\s+", line, re.I)
                 )
             session.history.append({"role": "assistant", "content": response})
             return session
 
     def upload_sample(self, session_id, path):
-        session = self.sessions[session_id]
+        session = self.get_session(session_id)
         with session.lock:
             session.sample = extract_sample(Path(path))
             return session.sample
 
     def upload_data(self, session_id, path):
+        session = self.get_session(session_id)
         path = Path(path)
         if (
             path.suffix.lower() not in {".csv", ".xlsx"}
             or path.stat().st_size > 20 * 1024 * 1024
         ):
             raise ValueError("Upload a CSV or XLSX data file no larger than 20 MiB.")
+        if path.suffix.lower() == ".xlsx":
+            from report_agent.ingestion.archives import validate_archive
+
+            validate_archive(path)
         name = "upload_" + uuid4().hex
         directory = self.onboarding.store.root / "sources" / name
         directory.mkdir(parents=True)
@@ -167,6 +192,6 @@ class ConversationService:
             )
         )
         self.sources[name] = FileSource(destination)
-        self.sessions[session_id].source_labels[name] = path.name
+        session.source_labels[name] = path.name
         self.source_labels[name] = path.name
         return name

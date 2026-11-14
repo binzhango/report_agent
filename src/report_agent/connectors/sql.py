@@ -1,4 +1,4 @@
-"""SQLAlchemy binding with database-enforced read-only execution."""
+"""Bounded SQL execution. Connections must use a read-only reporting DB role."""
 
 import time
 
@@ -21,7 +21,9 @@ class SqlSource:
             raise ValueError("_report_limit is reserved.")
         query = source.query.strip().removesuffix(";")
         # Wrapping provides a server-side limit and accepts SELECT/CTE queries only.
-        statement = text(f"SELECT * FROM ({query}) AS report_data LIMIT :_report_limit")
+        statement = text(
+            f"SELECT * FROM (\n{query}\n) AS report_data LIMIT :_report_limit"
+        )
         with self.engine.connect() as connection:
             raw = None
             try:
