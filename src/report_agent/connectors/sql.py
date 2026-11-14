@@ -4,6 +4,8 @@ import time
 
 import pandas as pd
 
+from report_agent.errors import ReportError
+
 
 class SqlSource:
     def __init__(self, url: str, *, timeout_seconds: int = 30):
@@ -12,13 +14,13 @@ class SqlSource:
         self.engine = create_engine(url)
         self.timeout_seconds = timeout_seconds
         if self.engine.dialect.name not in {"sqlite", "postgresql"}:
-            raise ValueError("SQL sources currently support SQLite and PostgreSQL.")
+            raise ReportError("SQL sources currently support SQLite and PostgreSQL.")
 
     def fetch(self, source):
         from sqlalchemy import text
 
         if "_report_limit" in source.params:
-            raise ValueError("_report_limit is reserved.")
+            raise ReportError("_report_limit is reserved.")
         query = source.query.strip().removesuffix(";")
         # Wrapping provides a server-side limit and accepts SELECT/CTE queries only.
         statement = text(
@@ -45,7 +47,7 @@ class SqlSource:
                 )
                 rows = result.fetchmany(source.row_limit + 1)
                 if len(rows) > source.row_limit:
-                    raise ValueError(f"Query exceeds row limit {source.row_limit}.")
+                    raise ReportError(f"Query exceeds row limit {source.row_limit}.")
                 return pd.DataFrame(rows, columns=list(result.keys()))
             finally:
                 if raw is not None:

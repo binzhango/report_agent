@@ -1,5 +1,35 @@
 """Native controls for structured agent questions inside the transcript."""
 
+from report_agent.definitions.calendar_months import month_dates
+from report_agent.definitions.parameters import DateRange
+from report_agent.errors import ReportError
+from report_agent.interfaces.gradio.safe_text import plain_text_html
+
+
+def month_input_state(span, values):
+    start, end = values.get(span.start), values.get(span.end)
+    if start:
+        candidate = str(start)[:7]
+        try:
+            expected = month_dates(span, candidate)
+            if start == expected[span.start] and (
+                end is None or end == expected[span.end]
+            ):
+                return "month", candidate
+        except ReportError:
+            pass
+    return ("month", None) if start is None and end is None else ("dates", None)
+
+
+def unpack_form_answers(form, values):
+    count = sum(2 if f.get("allow_other") else 1 for f in form["fields"])
+    answers = unpack_answers(form["fields"], values[:count])
+    for index, data in enumerate(form.get("month_ranges", [])):
+        mode, month = values[count + index * 2 : count + index * 2 + 2]
+        if mode == "month":
+            answers.update(month_dates(DateRange.model_validate(data), month))
+    return answers
+
 
 def unpack_answers(fields, values):
     answers, index = {}, 0
@@ -21,19 +51,61 @@ def render_input_form(event, state, outputs, options, submit):
     form, active = event["form"], event["active"]
     answered = event.get("answers")
     prefix = event["id"]
-    gr.Markdown(form["title"], elem_classes="input-form-title")
+    gr.HTML(plain_text_html(form["title"]), elem_classes="input-form-title")
     if form.get("description"):
-        gr.Markdown(form["description"], elem_classes="input-form-description")
+        gr.HTML(
+            plain_text_html(form["description"]), elem_classes="input-form-description"
+        )
     gr.Markdown("Required fields are marked *.", elem_classes="input-form-hint")
+    shortcuts, visibility = [], {}
+    displayed = {
+        field["id"]: (answered or {}).get(field["id"], field.get("default"))
+        for field in form["fields"]
+    }
+    for index, data in enumerate(form.get("month_ranges", [])):
+        span = DateRange.model_validate(data)
+        mode, month = month_input_state(span, displayed)
+        choice = gr.Radio(
+            [("Calendar month", "month"), ("Custom dates", "dates")],
+            value=mode,
+            label="Reporting period"
+            if index == 0
+            else "Reporting period " + str(index + 1),
+            interactive=active,
+            key=prefix + f"-month-mode-{index}",
+        )
+        month_control = gr.Textbox(
+            value=month,
+            label="Reporting month",
+            placeholder="November 2026 or 2026-11",
+            visible=mode == "month",
+            interactive=active,
+            key=prefix + f"-month-{index}",
+        )
+        gr.HTML(
+            plain_text_html(
+                "Calendar-month mode fills both dates automatically. "
+                + (
+                    "The end date is included."
+                    if span.end_inclusive
+                    else "The end date is excluded."
+                )
+            ),
+            elem_classes="input-field-help",
+        )
+        shortcuts.append((span, choice, month_control))
+        visibility[span.start] = visibility[span.end] = mode == "dates"
     controls = []
+    widgets = {}
     for field in form["fields"]:
         value = (answered or {}).get(field["id"], field.get("default"))
         args = {
             "label": field["label"]
             + (" *" if field.get("required", True) else " (optional)"),
-            "info": field.get("help") or None,
+            "info": None,
             "interactive": active,
             "key": prefix + "-" + field["id"],
+            "visible": visibility.get(field["id"], True),
         }
         # Preserve partially filled values across progress/status renders. Once
         # answered, the submitted snapshot supplies the immutable display values.
@@ -74,6 +146,9 @@ def render_input_form(event, state, outputs, options, submit):
                 **args,
             )
         controls.append(widget)
+        widgets[field["id"]] = widget
+        if field.get("help"):
+            gr.HTML(plain_text_html(field["help"]), elem_classes="input-field-help")
         if field.get("allow_other"):
             other = gr.Textbox(
                 label="Other — " + field["label"],
@@ -90,7 +165,19 @@ def render_input_form(event, state, outputs, options, submit):
                 queue=False,
             )
             controls.append(other)
-    error = gr.Markdown("", elem_classes="input-form-error", key=prefix + "-error")
+    for span, choice, month_control in shortcuts:
+        choice.change(
+            lambda mode: (
+                gr.update(visible=mode == "month"),
+                gr.update(visible=mode == "dates"),
+                gr.update(visible=mode == "dates"),
+            ),
+            [choice],
+            [month_control, widgets[span.start], widgets[span.end]],
+            queue=False,
+        )
+        controls.extend([choice, month_control])
+    error = gr.HTML("", elem_classes="input-form-error", key=prefix + "-error")
     button = gr.Button(
         ("Review parameters" if form.get("report_reference") else "Continue")
         if active
@@ -104,7 +191,12 @@ def render_input_form(event, state, outputs, options, submit):
     )
 
     def answer(key, *values):
-        yield from submit(key, form["id"], unpack_answers(form["fields"], values))
+        try:
+            answers = unpack_form_answers(form, values)
+        except ReportError as exc:
+            yield *[gr.skip() for _ in outputs], plain_text_html(str(exc))
+            return
+        yield from submit(key, form["id"], answers)
 
     button.click(
         answer,

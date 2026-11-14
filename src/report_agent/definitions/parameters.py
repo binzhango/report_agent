@@ -70,6 +70,14 @@ class ParameterOrder(StrictModel):
     after: str
 
 
+class DateRange(StrictModel):
+    """Names of saved date parameters and their calendar-month boundary rule."""
+
+    start: str = Field(description="Name of the inclusive start date parameter.")
+    end: str = Field(description="Name of the end date parameter.")
+    end_inclusive: bool = False
+
+
 def resolve_parameters(definitions, supplied, rules=()):
     if not isinstance(supplied, dict):
         raise ReportError(

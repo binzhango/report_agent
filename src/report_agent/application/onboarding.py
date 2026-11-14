@@ -8,6 +8,7 @@ from uuid import uuid4
 
 from report_agent.authoring.previews import thumbnails
 from report_agent.definitions.bindings import bind_queries
+from report_agent.definitions.calendar_months import expand_report_month
 from report_agent.definitions.models import ReportDefinition
 from report_agent.errors import ReportError
 
@@ -171,12 +172,17 @@ class OnboardingService:
         session.accepted, session.draft, session.pending = reference, None, None
         return reference
 
-    def propose(self, session, reference, parameters):
+    def propose(self, session, reference, parameters, *, report_month=None):
+        session.pending = None
         self.store.path(reference)
         if not reference.startswith("accepted/"):
             raise ReportError(
                 "Accept the template before starting repeat runs.",
                 code="acceptance_required",
+            )
+        if report_month is not None:
+            parameters = expand_report_month(
+                self.store.load(reference), parameters, report_month
             )
         definition, values, _ = self.runs.prepare(reference, parameters)
         session.pending = {"reference": reference, "parameters": values}

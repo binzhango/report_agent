@@ -1,6 +1,7 @@
 """Agent tools delegate to validated application services."""
 
 import json
+import logging
 import os
 from datetime import datetime
 from zoneinfo import ZoneInfo
@@ -13,6 +14,21 @@ from report_agent.application.input_forms import InputForm, parameter_form
 from report_agent.definitions.models import ReportDefinition
 from report_agent.errors import ReportError
 from report_agent.resolution.models import QuerySource
+
+logger = logging.getLogger(__name__)
+
+
+def tool_failure(exc, operation):
+    """Keep original tracebacks in server logs, outside public tool messages."""
+    from pydantic import ValidationError
+
+    if not isinstance(exc, (ReportError, ValidationError)):
+        logger.error(
+            "Report operation failed: %s",
+            operation,
+            exc_info=(type(exc), exc, exc.__traceback__),
+        )
+    return public_tool_error(exc)
 
 
 def build_tools(session, onboarding, sources):
@@ -44,7 +60,7 @@ def build_tools(session, onboarding, sources):
             except Exception as exc:
                 if repair:
                     session.repair_pending = True
-                return public_tool_error(exc)
+                return tool_failure(exc, getattr(fn, "__name__", "tool"))
             if repair:
                 session.repair_pending = isinstance(result, dict) and (
                     result.get("success") is False or "error" in result
@@ -53,6 +69,9 @@ def build_tools(session, onboarding, sources):
 
     def preview(reference, parameters, sample_tables):
         result = onboarding.preview(session, reference, parameters, sample_tables)
+        for diagnostic in result.get("diagnostics", []):
+            if diagnostic.get("code") == "internal_error":
+                logger.error("Renderer failure for %s: %s", reference, diagnostic)
         # Renderer diagnostics can contain exception text and local paths. Keep
         # machine-readable repair codes; full details remain in local run artifacts.
         return {
@@ -92,6 +111,7 @@ def build_tools(session, onboarding, sources):
         description: str = "",
         report_reference: str | None = None,
         known_parameters: dict | None = None,
+        report_month: str | None = None,
     ) -> dict:
         """Ask questions using an interactive form inside the chat, then wait.
 
@@ -104,6 +124,8 @@ def build_tools(session, onboarding, sources):
         of fields: the application builds typed inputs from its saved schema.
         Submitting saved report parameters prepares confirmation without a model
         call. Call this tool on its own; it ends the turn to wait for the user.
+        For a known calendar month pass report_month (e.g. October 2026).
+        The application derives start/end dates; do not calculate them yourself.
         """
 
         def request():
@@ -119,6 +141,7 @@ def build_tools(session, onboarding, sources):
                     known_parameters or {},
                     title=title,
                     description=description,
+                    report_month=report_month,
                 )
             else:
                 form = InputForm(
@@ -195,61 +218,79 @@ def build_tools(session, onboarding, sources):
         output_format is pdf, docx, pptx, or xlsx. These examples use synthetic text;
         they are not final content and cannot be accepted until made into a draft.
         """
-        results = []
-        onboarding.discard_examples(session)
-        session.files.clear()
-        session.gallery.clear()
-        session.candidates.clear()
-        for preset in catalog_context():
 
-            def generate(preset=preset):
-                rows = preset["demo_rows"]
-                definition = ReportDefinition.model_validate(
-                    {
-                        "id": preset["id"],
+        def generate_all():
+            results = []
+            onboarding.discard_examples(session)
+            session.files.clear()
+            session.gallery.clear()
+            session.candidates.clear()
+            for preset in catalog_context():
+
+                def generate(preset=preset):
+                    rows = preset["demo_rows"]
+                    definition = ReportDefinition.model_validate(
+                        {
+                            "id": preset["id"],
+                            "name": preset["name"],
+                            "description": preset["description"],
+                            "layout": {
+                                "title": f"DEMONSTRATION — {topic}"[:200],
+                                "format": output_format,
+                                "accent": preset["color"],
+                                "blocks": [
+                                    {
+                                        "name": f"section_{i}",
+                                        "heading": heading,
+                                        "kind": "table" if i == 1 else "text",
+                                        "text": ""
+                                        if i == 1
+                                        else (
+                                            "Illustrative content only. This section "
+                                            f"presents {heading.lower()} "
+                                            "for the report's "
+                                            "audience. Choose this structure, then use "
+                                            "your own content and connected data."
+                                        ),
+                                    }
+                                    for i, heading in enumerate(preset["outline"])
+                                ],
+                            },
+                            "queries": {
+                                "section_1": {
+                                    "connection": "demonstration",
+                                    "query": "example",
+                                    "columns": list(rows[0]),
+                                }
+                            },
+                        }
+                    )
+                    reference = store.draft(definition)
+                    session.example_drafts.add(reference)
+                    session.candidates[preset["name"]] = reference
+                    return {
                         "name": preset["name"],
                         "description": preset["description"],
-                        "layout": {
-                            "title": f"DEMONSTRATION — {topic}"[:200],
-                            "format": output_format,
-                            "accent": preset["color"],
-                            "blocks": [
-                                {
-                                    "name": f"section_{i}",
-                                    "heading": heading,
-                                    "kind": "table" if i == 1 else "text",
-                                    "text": ""
-                                    if i == 1
-                                    else (
-                                        "Illustrative content only. This section "
-                                        f"presents {heading.lower()} for the report's "
-                                        "audience. Choose this structure, then use "
-                                        "your own content and connected data."
-                                    ),
-                                }
-                                for i, heading in enumerate(preset["outline"])
-                            ],
-                        },
-                        "queries": {
-                            "section_1": {
-                                "connection": "demonstration",
-                                "query": "example",
-                                "columns": list(rows[0]),
-                            }
-                        },
+                        **preview(reference, {}, {"section_1": rows}),
                     }
-                )
-                reference = store.draft(definition)
-                session.example_drafts.add(reference)
-                session.candidates[preset["name"]] = reference
-                return {
-                    "name": preset["name"],
-                    "description": preset["description"],
-                    **preview(reference, {}, {"section_1": rows}),
-                }
 
-            results.append(attempt(generate, repair=True))
-        return results
+                try:
+                    results.append(generate())
+                except Exception as exc:
+                    results.append(
+                        {
+                            "name": preset["name"],
+                            "success": False,
+                            **tool_failure(exc, "rendered_examples:" + preset["id"]),
+                        }
+                    )
+            return {
+                "success": any(item.get("success") for item in results),
+                "examples": results,
+            }
+
+        result = attempt(generate_all, repair=True)
+        return result.get("examples", [result])
 
     @tool
     def inspect_source(connection: str) -> dict:
@@ -306,14 +347,21 @@ def build_tools(session, onboarding, sources):
         return attempt(fetch, repair=True)
 
     @tool
-    def propose_report_run(reference: str, parameters: dict) -> dict:
+    def propose_report_run(
+        reference: str, parameters: dict, report_month: str | None = None
+    ) -> dict:
         """Validate parameters for an accepted report and present them for confirmation.
 
         This does not fetch or render. The user presses Confirm parameters and render;
         then application code executes the saved bindings without another model call.
+        For a calendar month pass report_month and omit raw start/end dates.
+        The application computes the saved range's inclusive/exclusive bounds.
         """
         return attempt(
-            lambda: onboarding.propose(session, reference, parameters), repair=True
+            lambda: onboarding.propose(
+                session, reference, parameters, report_month=report_month
+            ),
+            repair=True,
         )
 
     return [

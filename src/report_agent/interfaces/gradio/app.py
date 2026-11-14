@@ -9,6 +9,7 @@ from report_agent.application.input_forms import InputForm, parameter_form
 from report_agent.errors import ReportError
 from report_agent.interfaces.gradio.input_forms import render_input_form
 from report_agent.interfaces.gradio.report_review import data_review_html
+from report_agent.interfaces.gradio.safe_text import chat_html, plain_text_html
 from report_agent.interfaces.gradio.transcript import snapshot
 
 logger = logging.getLogger(__name__)
@@ -73,7 +74,12 @@ def create_app(service):
                     "content": user_message,
                 },
             )
-        return key, events, status, gr.update(interactive=not busy)
+        return (
+            key,
+            events,
+            plain_text_html(status) if status else "",
+            gr.update(interactive=not busy),
+        )
 
     def run_chat(message, key, *, display_message=None):
         key, _ = get_session(key)
@@ -115,15 +121,44 @@ def create_app(service):
     def chat(message, key):
         yield from run_chat(message, key)
 
+    def start_discovery(key):
+        key, session = get_session(key)
+        with session.lock:
+            session.pending = None
+            session.input_form = InputForm(
+                title="Let's shape your report",
+                description="Start with the purpose and audience. "
+                "We’ll choose the format next.",
+                fields=[
+                    {
+                        "id": "purpose",
+                        "label": "What should this report help you decide?",
+                        "type": "multiline",
+                    },
+                    {"id": "audience", "label": "Who will read it?", "type": "text"},
+                ],
+            ).model_dump(mode="json")
+            session.history.extend(
+                [
+                    {"role": "user", "content": "Help me get started."},
+                    {
+                        "role": "assistant",
+                        "content": "Tell me the purpose and audience "
+                        "in the form below.",
+                    },
+                ]
+            )
+        return view(key)
+
     def submit_inputs(key, form_id, answers):
         try:
             result = service.submit_inputs(key, form_id, answers)
         except ReportError as exc:
-            yield *[gr.skip() for _ in range(4)], str(exc)
+            yield *[gr.skip() for _ in range(4)], plain_text_html(str(exc))
             return
         except Exception as exc:
             logger.exception("Input form submission failed")
-            yield *[gr.skip() for _ in range(4)], request_error(exc)
+            yield *[gr.skip() for _ in range(4)], plain_text_html(request_error(exc))
             return
         if result["report_run"]:
             session = service.get_session(key)
@@ -372,7 +407,7 @@ def create_app(service):
                                 "You" if event["role"] == "user" else "◈ Report Studio",
                                 elem_classes="speaker",
                             )
-                            gr.Markdown(event["content"], key=event_id + "-text")
+                            gr.HTML(chat_html(event["content"]), key=event_id + "-text")
                         elif kind == "report":
                             gr.Markdown("**Report preview**", elem_classes="card-title")
                             if event["gallery"]:
@@ -520,8 +555,9 @@ def create_app(service):
                             )
                         elif kind == "activity":
                             prefix = "◌ " if event.get("busy") else ""
-                            gr.Markdown(
-                                prefix + event["content"], elem_classes="activity-line"
+                            gr.HTML(
+                                plain_text_html(prefix + event["content"]),
+                                elem_classes="activity-line",
                             )
 
         with gr.Column(elem_id="composer-shell"):
@@ -595,7 +631,7 @@ def create_app(service):
                     min_width=76,
                     elem_id="send",
                 )
-            status = gr.Markdown("", visible=False)
+            status = gr.HTML("", visible=False)
             dismiss_menu = gr.Button("Close menus", elem_id="dismiss-menus")
             gr.Markdown(
                 "Files and messages use your configured model endpoint.",
@@ -671,12 +707,11 @@ def create_app(service):
             queue=False,
         )
         uncertain.click(
-            lambda: (
-                "I need a report, but don't know what it should include. "
-                "Help me step by step."
-            ),
-            outputs=message,
-            queue=False,
+            start_discovery,
+            [state],
+            outputs,
+            api_name="start_discovery",
+            **options,
         )
         saved.input(use_saved, [saved], message, queue=False).then(
             close_menu, outputs=menu_outputs, queue=False

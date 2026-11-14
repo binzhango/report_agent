@@ -37,6 +37,10 @@ body, .gradio-container { background: #faf9f6 !important; color: #282824; }
 .input-form-description p { color: #77736a; margin: 0; }
 .input-form-hint p { font-size: 11px !important; color: #928d82; margin: 0; }
 .input-form-error p { color: #a33d32; font-size: 13px !important; }
+.input-field-help p { color: #91897c; font-size: 12px !important; margin: 0; }
+.input-form-title, .input-form-description, .input-field-help, .input-form-error {
+ white-space: pre-wrap; overflow-wrap: anywhere; }
+.chat-prose pre { overflow-x: auto; white-space: pre; }
 .report-saved { background: #eff5ef; color: #365b40; border-radius: 8px;
  padding: 8px 12px !important; }
 .report-saved p { margin: 0; font-size: 13px !important; font-weight: 500; }

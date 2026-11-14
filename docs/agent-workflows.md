@@ -105,7 +105,8 @@ removal. Rendered run artifacts remain available as historical downloads.
 
 ## Answer in the chat
 
-When information is missing, the agent opens an inline input form rather than a
+The **Help me get started** button opens the initial purpose/audience form
+directly, without a model call. For other missing information, the agent opens an inline input form rather than a
 numbered list of questions. Forms support month input (`November 2026` or
 `2026-11`), date pickers, choices, numbers, Yes/No, and short or multiline answers.
 **Other…** opens a separate text box for custom choices. Required fields are marked;
@@ -120,7 +121,9 @@ message disable older submission actions. Sample uploads also show a form for
 output format and requested changes.
 
 For accepted reports, forms are derived from the stored parameter schema, with
-known values/defaults prefilled. **Review parameters** validates types, choices,
+known values/defaults prefilled. **Calendar month** accepts a month/year and
+calculates both dates using the saved inclusive/exclusive boundary rule;
+**Custom dates** exposes the individual date pickers. **Review parameters** validates types, choices,
 and date ordering and creates a confirmation card without another model call.
 Use **Edit inputs** to adjust a proposal, then **Confirm parameters and render**.
 Neither form submission nor editing changes the saved template or fetches data.
@@ -226,3 +229,11 @@ analysis, data binding, and repeat-run parameter extraction before relying on it
 
 Framework references: [Deep Agents skills](https://docs.langchain.com/oss/python/deepagents/skills)
 and [agent construction](https://reference.langchain.com/python/deepagents/graph/create_deep_agent).
+
+Form titles, descriptions, and field help are plain text. Chat keeps ordinary
+Markdown formatting but replaces image tokens with alt text and escapes raw HTML,
+so model-controlled text does not automatically load images. Explicit SQL code
+fences are still hidden by default unless query inspection is requested.
+Unexpected tool exceptions and renderer tracebacks are logged server-side while
+public tool errors stay sanitized. One gallery generation is one attempt, with
+per-preset failures retained in its result.

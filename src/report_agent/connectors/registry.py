@@ -6,6 +6,7 @@ from pathlib import Path
 import yaml
 
 from report_agent.connectors.files import FileSource
+from report_agent.errors import ReportError
 
 
 def load_sources(path: Path | None):
@@ -13,7 +14,7 @@ def load_sources(path: Path | None):
         return {}
     config = yaml.safe_load(path.read_text())
     if not isinstance(config, dict) or set(config) != {"sources"}:
-        raise ValueError("Connections file must contain a sources mapping.")
+        raise ReportError("Connections file must contain a sources mapping.")
     sources = {}
     for name, spec in config["sources"].items():
         if spec["type"] == "file":
@@ -36,7 +37,7 @@ def load_sources(path: Path | None):
                 records_key=spec.get("records_key"),
             )
         else:
-            raise ValueError(f"Unknown connection type: {spec['type']}")
+            raise ReportError("Connection type must be file, sql, or http.")
     return sources
 
 
@@ -49,7 +50,7 @@ def describe_source(source):
         import pandas as pd
 
         if source.path.stat().st_size > 20 * 1024 * 1024:
-            raise ValueError("Data file exceeds 20 MiB.")
+            raise ReportError("Data file exceeds 20 MiB.")
         sheets = ["data"]
         if source.path.suffix.lower() == ".csv":
             frame = pd.read_csv(source.path, nrows=100)

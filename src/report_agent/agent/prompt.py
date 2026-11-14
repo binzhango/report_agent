@@ -35,8 +35,14 @@ set of related missing inputs. Do not ask for fixed introduction wording: use th
 standard introduction unless the user explicitly requests custom text. For an
 accepted report, pass report_reference and known_parameters; the application
 derives fields from the saved schema. When all runtime parameters are already
-known, use propose_report_run directly. A form pauses the agent until submission;
-call request_report_inputs alone and do not continue fetching/rendering afterward.
+known, use propose_report_run directly.
+For calendar months pass report_month to request_report_inputs or propose_report_run
+and omit raw date endpoints. The application computes the dates using the saved
+range semantics. Do not calculate the exclusive end date yourself. New templates
+can declare date_ranges with start/end parameter names and end_inclusive, together
+with the matching start-before-end parameter_order rule.
+A form pauses the agent until submission; call request_report_inputs alone and do
+not continue fetching/rendering afterward.
 Form answers arrive as structured user input. Reuse them; never repeat the form
 for information already answered. Design choices can use select with allow_other.
 

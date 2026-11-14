@@ -100,6 +100,33 @@ workflows, not a claim about all 8B models. Authoring and injection were not run
 Granite after these core failures. Smaller tool-capable alternatives still need
 evaluation. The single Muse Glimmer instance was restored after testing.
 
+## Review follow-up: deterministic controls
+
+The explicit **Help me get started** button now creates the purpose/audience form
+in application code without contacting a model. Natural-language routing, later
+question count, same-turn galleries, and skill reading still depend on the model.
+The historical Granite and discovery failures above are retained; this follow-up
+is not a new model benchmark.
+
+Calendar-month form input derives start/end dates in application code. Browser
+verification entered `October 2026` and obtained `2026-10-01` and `2026-11-01`
+without another agent call. Deterministic tests also cover inclusive ends, leap
+years, December rollover, ambiguous legacy bindings, and per-preset gallery
+failures that do not consume the budget as separate repairs.
+
+A localhost image-request probe rendered poisoned form titles, descriptions,
+labels, help/errors, and chat messages containing Markdown and HTML images.
+The counter received one application-authored positive-control image request and
+zero leak requests. The DOM contained only that control image. This verifies the
+rendering path against those payloads, not resistance to every injection attack.
+Form text uses escaped plain text; chat image tokens become alt text and raw HTML
+is escaped. Native, application-owned report galleries remain available.
+
+The CLI launcher is `src/report_agent/interfaces/cli/app.py`: `report serve` defaults
+to `server_name="127.0.0.1"` and `share=False`. A launch regression checks those
+arguments. An operator can deliberately override the host. Browser artifacts and
+request counts are retained in `output/review_followup_ui/`.
+
 ## What these results do not establish
 
 This is a smoke evaluation, not a benchmark or a security guarantee. One sample
@@ -112,8 +139,9 @@ unrelated saved-template choices and inspected the same saved report twice.
 The authoring response included raw SQL in ordinary prose despite the prompt's
 presentation rule. Those are observed prompt-following limitations. Question
 count and same-turn gallery behavior remain model behaviors, with explicit smoke
-checks; they are not code-enforced guarantees. No prose-deleting filter is used to
-pretend otherwise. The application enforces repair limits, real-data substitution
+checks; they are not code-enforced guarantees. Ordinary prose is preserved.
+Explicitly fenced `sql` blocks are hidden by default; SQL/query inspection requests
+disable that presentation filter. The application enforces repair limits, real-data substitution
 rules, preview-before-acceptance, and query review independently of those replies.
 
 The repair probe seeds a real failed tool result to guarantee an opportunity for

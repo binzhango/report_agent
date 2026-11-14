@@ -5,6 +5,7 @@ from typing import Literal
 from pydantic import Field, model_validator
 
 from report_agent.definitions.parameters import StrictModel
+from report_agent.errors import ReportError
 
 
 class Block(StrictModel):
@@ -28,9 +29,15 @@ class Layout(StrictModel):
     def unique_blocks(self):
         names = [b.name for b in self.blocks]
         if len(set(names)) != len(names):
-            raise ValueError("Block names must be unique.")
+            raise ReportError("Block names must be unique.", code="duplicate_block")
         if any(n == "title" or n.startswith("heading_") for n in names):
-            raise ValueError("title and heading_* are reserved input names.")
+            raise ReportError(
+                "title and heading_* are reserved input names.",
+                code="reserved_block_name",
+            )
         if self.format == "xlsx" and any(b.kind == "chart" for b in self.blocks):
-            raise ValueError("The current XLSX backend supports text and table blocks.")
+            raise ReportError(
+                "The current XLSX backend supports text and table blocks.",
+                code="unsupported_layout",
+            )
         return self

@@ -2,6 +2,8 @@
 
 from zipfile import BadZipFile, ZipFile
 
+from report_agent.errors import ReportError
+
 MAX_EXPANDED_BYTES = 50 * 1024 * 1024
 MAX_ARCHIVE_ENTRIES = 3000
 
@@ -12,7 +14,7 @@ def validate_members(archive):
         len(members) > MAX_ARCHIVE_ENTRIES
         or sum(member.file_size for member in members) > MAX_EXPANDED_BYTES
     ):
-        raise ValueError("Expanded Office archive exceeds the size or entry limit.")
+        raise ReportError("Expanded Office archive exceeds the size or entry limit.")
 
 
 def validate_archive(path):
@@ -20,4 +22,4 @@ def validate_archive(path):
         with ZipFile(path) as archive:
             validate_members(archive)
     except BadZipFile as exc:
-        raise ValueError("Unreadable Office archive.") from exc
+        raise ReportError("Unreadable Office archive.") from exc

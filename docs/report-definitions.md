@@ -25,6 +25,8 @@ parameters:
   end_date: {type: date, description: Exclusive reporting period end}
 parameter_order:
   - {before: start_date, after: end_date}
+date_ranges:
+  - {start: start_date, end: end_date, end_inclusive: false}
 text_bindings:
   title: 'Sales: {start_date} to {end_date}'
 queries:
@@ -48,6 +50,24 @@ and booleans are not accepted as integers. Unknown parameters fail validation.
 `parameter_order` checks matching date/numeric parameters using a strict before
 relationship. Optional values referenced by a query or text binding still need
 a value or default for that particular run.
+
+`date_ranges` optionally names the start/end parameters used by calendar-month
+input. Each pair must contain distinct declared date parameters, a matching
+`parameter_order` rule, and no overlapping date ranges. With `end_inclusive: false`,
+October 2026 becomes October 1 to November 1; with `true`, it ends October 31.
+Leap years and December rollover are computed by code. The setting must match
+the query/filter semantics accepted by the user.
+
+Saved-report forms offer **Calendar month** and **Custom dates**. For older bundles
+without `date_ranges`, the application recognizes ordered date pairs with simple
+SQL `<`/`<=`/`BETWEEN` bounds or saved file `lt`/`le` filters. Ambiguous data-query
+bounds leave custom dates available; no guess is made. Text-only legacy ranges
+use an exclusive end unless the parameter description declares an inclusive end.
+
+The agent can pass `report_month` to `request_report_inputs` or `propose_report_run`
+instead of computing raw endpoints. Other supplied parameters are preserved;
+conflicting supplied dates are rejected with `month_date_conflict`. Multiple
+calendar ranges are selected individually in the form.
 
 Text bindings allow only simple `{parameter}` substitutions. Attribute access,
 conversion flags, and formatting expressions are rejected. Omitted text inputs

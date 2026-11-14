@@ -2,6 +2,7 @@
 
 import hashlib
 import json
+import logging
 import posixpath
 from io import BytesIO
 from pathlib import Path
@@ -23,6 +24,8 @@ from report_agent.storage.artifacts import LocalArtifactStore, publish_snapshot
 from report_agent.storage.workspace import TemporaryWorkspaceManager
 from report_agent.templates.odf import OdfTemplate, parse
 from report_agent.validation.text import text_issues
+
+logger = logging.getLogger(__name__)
 
 
 def verify_package(path, fmt, animations=()):
@@ -239,6 +242,7 @@ class LibreOfficeBackend:
                 artifacts=tuple(retained),
             )
         except Exception as exc:
+            logger.exception("Unexpected Office render failure during %s", stage)
             return RenderResult(
                 diagnostics=(
                     Diagnostic(stage, "internal_error", f"{type(exc).__name__}: {exc}"),

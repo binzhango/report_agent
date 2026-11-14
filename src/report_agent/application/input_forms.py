@@ -2,13 +2,22 @@
 
 import json
 import math
-from datetime import date, datetime
+from datetime import date
 from typing import Literal
 from uuid import uuid4
 
 from pydantic import Field, model_validator
 
-from report_agent.definitions.parameters import StrictModel, resolve_parameters
+from report_agent.definitions.calendar_months import (
+    calendar_ranges,
+    expand_report_month,
+    normalize_month,
+)
+from report_agent.definitions.parameters import (
+    DateRange,
+    StrictModel,
+    resolve_parameters,
+)
 from report_agent.errors import ReportError
 
 
@@ -71,16 +80,7 @@ class InputField(StrictModel):
                     f"{self.label}: use YYYY-MM-DD.", code="invalid_date"
                 ) from exc
         elif self.type == "month":
-            for pattern in ("%Y-%m", "%B %Y", "%b %Y"):
-                try:
-                    return datetime.strptime(value, pattern).strftime("%Y-%m")
-                except ValueError:
-                    pass
-            raise ReportError(
-                f"{self.label}: use YYYY-MM or a month and year, "
-                "such as November 2026.",
-                code="invalid_month",
-            )
+            return normalize_month(value)
         elif self.type == "boolean":
             if value in ("yes", "no"):
                 value = value == "yes"
@@ -102,6 +102,7 @@ class InputForm(StrictModel):
     description: str = Field(default="", max_length=500)
     fields: list[InputField] = Field(min_length=1, max_length=12)
     report_reference: str | None = None
+    month_ranges: list[DateRange] = Field(default_factory=list)
 
     @model_validator(mode="after")
     def unique_ids(self):
@@ -126,7 +127,11 @@ class InputForm(StrictModel):
         return values
 
 
-def parameter_form(definition, reference, supplied, *, title, description):
+def parameter_form(
+    definition, reference, supplied, *, title, description, report_month=None
+):
+    if report_month is not None:
+        supplied = expand_report_month(definition, supplied, report_month)
     if supplied.keys() - definition.parameters.keys():
         raise ReportError("Use only parameters declared in the saved report.")
     fields = []
@@ -151,7 +156,11 @@ def parameter_form(definition, reference, supplied, *, title, description):
             )
         )
     return InputForm(
-        title=title, description=description, fields=fields, report_reference=reference
+        title=title,
+        description=description,
+        fields=fields,
+        report_reference=reference,
+        month_ranges=calendar_ranges(definition),
     )
 
 

@@ -25,6 +25,7 @@ agent = [
     "gradio>=6.0,<7",
     "langchain>=1.2,<2",
     "langchain-openai>=1.1,<2",
+    "markdown-it-py>=4,<5",
     "pypdf>=6.0,<7",
     "openpyxl>=3.1,<4",
     "sqlalchemy>=2.0,<3",

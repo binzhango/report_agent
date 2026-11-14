@@ -35,7 +35,18 @@ def public_tool_error(exc):
                         "code": issue["ctx"]["error"].code,
                     }
                     if isinstance(issue.get("ctx", {}).get("error"), ReportError)
-                    else {}
+                    else {
+                        "error": {
+                            "missing": "This field is required.",
+                            "literal_error": "Choose a value declared by the schema.",
+                            "string_pattern_mismatch": "Use the format declared "
+                            "by the schema.",
+                        }.get(
+                            issue["type"],
+                            "Invalid value for this field; check report_contract.",
+                        ),
+                        "code": "schema_" + issue["type"],
+                    }
                 ),
             }
             for issue in exc.errors(
