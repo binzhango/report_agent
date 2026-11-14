@@ -1,8 +1,16 @@
 # Project overview
 
-Report Agent compiles complete LaTeX templates into PDF reports. Callers supply
+Report Agent compiles complete LaTeX templates into PDF reports and Flat ODF
+templates into DOCX/XLSX/PPTX through LibreOffice. Callers supply
 JSON/YAML metadata (or a Python mapping/model) and typed runtime content: text,
-images, graph files, matplotlib figures, and pandas DataFrames.
+images, graph files, matplotlib figures, pandas DataFrames and PPTX animations.
+
+`ReportRenderer` loads metadata, runs an injected `ContentResolver` when queries
+or non-user sources are present, and dispatches schema v1 to `LatexPdfBackend`
+or schema v2 to `LibreOfficeBackend`. The renderer owns resolution media through
+backend completion. Both backends publish replacement artifact snapshots.
+The detailed flow below covers the PDF backend; the
+[Office guide](libreoffice-template-guide.md) describes Flat ODF expansion.
 
 This is the current architecture reference. Detailed examples live in the
 [comprehensive walkthrough](comprehensive-example-walkthrough.md) and
@@ -48,20 +56,26 @@ src/report_agent/
 ├── application/
 │   ├── request.py               # One invocation
 │   ├── service.py               # ReportRenderer orchestration
+│   ├── backends.py              # DocumentBackend protocol
 │   ├── validation.py            # Template/input compatibility
 │   └── bootstrap.py             # Default dependency composition
+├── backends/
+│   ├── latex_pdf.py             # TeX rendering and compilation
+│   └── libreoffice.py           # ODF expansion, conversion and package checks
 ├── models/
 │   ├── inputs.py                # Typed caller values
 │   ├── results.py               # Fragments, diagnostics, build results
 │   └── template.py              # Template bundle and render context
 ├── metadata/
 │   ├── models.py                # Shared metadata schema
+│   ├── office.py                # Schema-v2 Office metadata
 │   ├── styles.py                # Presentation schema
 │   ├── dimensions.py            # Supported dimensions
 │   ├── parsers.py               # JSON/YAML format strategies
 │   └── loader.py                # Format selection and schema validation
 ├── templates/
 │   ├── repository.py            # Local bundle discovery
+│   ├── odf.py                   # XML-aware Flat ODF slots and validation
 │   └── engine.py                # Jinja expansion and dependency inspection
 ├── rendering/
 │   ├── base.py                  # ContentRenderer protocol
@@ -79,13 +93,15 @@ src/report_agent/
 ├── compilation/
 │   ├── base.py                  # LatexCompiler protocol
 │   ├── texres.py                # Process lifecycle
+│   ├── libreoffice.py           # Private profiles, version cache and conversion
 │   └── diagnostics.py           # Warnings and table overflow attribution
 ├── validation/
 │   ├── text.py                  # Shared plain-text validation policy
 │   └── packages.py              # Template package declaration scanner
-├── resolution/                 # Optional pre-render content preparation
+├── resolution/                 # Injected content preparation
 │   ├── interfaces.py            # DataSource / AgentTextGenerator protocols
 │   ├── models.py                # Query bindings, bounded summaries, results
+│   ├── animations.py            # Registered Matplotlib animation generators
 │   └── resolver.py              # Resolve tables before dependent agent text
 ├── storage/
 │   ├── workspace.py            # Temporary resource lifetime
@@ -93,6 +109,7 @@ src/report_agent/
 └── interfaces/
     └── cli/
         ├── app.py              # Typer adapter
+        ├── resolution.py       # Explicit resolver factory and query bindings
         └── inputs.py           # JSON/YAML manifests and CSV/Parquet loading
 ```
 

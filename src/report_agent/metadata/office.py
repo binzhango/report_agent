@@ -1,5 +1,6 @@
 """Strict Office metadata; independent of the legacy TeX schema."""
 
+import re
 from typing import Literal
 
 from pydantic import Field, model_validator
@@ -84,8 +85,6 @@ class OfficeMetadata(MetadataModel):
 
     @model_validator(mode="after")
     def dependencies(self):
-        import re
-
         expected = {"docx": ".fodt", "xlsx": ".fods", "pptx": ".fodp"}[
             self.document.format
         ]

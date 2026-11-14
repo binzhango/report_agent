@@ -5,10 +5,16 @@ import logging
 from collections.abc import Mapping
 from dataclasses import replace
 from math import isfinite
+from pathlib import Path
 
 import pandas as pd
 
 from report_agent.metadata.models import InputDefinition, TemplateMetadata
+from report_agent.metadata.office import (
+    ExportOptions,
+    OfficeInputDefinition,
+    OfficeMetadata,
+)
 from report_agent.models.inputs import ContentInput, TableInput, TextInput
 from report_agent.models.results import Diagnostic
 from report_agent.resolution.interfaces import AgentTextGenerator, DataSource
@@ -46,11 +52,11 @@ class ContentResolver:
 
     def resolve(
         self,
-        metadata: TemplateMetadata,
+        metadata: TemplateMetadata | OfficeMetadata,
         *,
         inputs: Mapping[str, ContentInput] | None = None,
         queries: Mapping[str, QuerySource] | None = None,
-        media_workspace=None,
+        media_workspace: Path | None = None,
     ) -> ResolutionResult:
         resolved = dict(inputs or {})
         queries = dict(queries or {})
@@ -110,8 +116,6 @@ class ContentResolver:
                     raise ValueError(
                         "Animation generation needs registry and media_workspace."
                     )
-                from report_agent.metadata.office import ExportOptions
-
                 tables = {}
                 for dependency in definition.uses:
                     value = resolved.get(dependency)
@@ -150,7 +154,9 @@ class ContentResolver:
             )
 
     def _generate(
-        self, definition: InputDefinition, tables: Mapping[str, TableSummary]
+        self,
+        definition: InputDefinition | OfficeInputDefinition,
+        tables: Mapping[str, TableSummary],
     ) -> TextInput:
         request = GenerationRequest(definition.prompt, tables, definition.max_chars)
         for attempt in range(2):

@@ -35,7 +35,7 @@ def test_text_preserves_paragraphs_and_rejects_control_characters(
     assert (
         renderer.render(TextInput("a\r\n\r\nb"), definition, context).latex == "a\n\nb"
     )
-    with pytest.raises(ValueError, match="control characters"):
+    with pytest.raises(ValueError, match="XML 1.0"):
         renderer.render(TextInput("a\x00b"), definition, context)
 
 

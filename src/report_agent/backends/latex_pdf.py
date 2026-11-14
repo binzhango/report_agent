@@ -23,7 +23,7 @@ from report_agent.models.results import (
 from report_agent.models.template import RenderContext, TemplateBundle
 from report_agent.presentation.styler import PlaceholderStyler
 from report_agent.rendering.registry import RendererRegistry
-from report_agent.storage.artifacts import ArtifactStore
+from report_agent.storage.artifacts import ArtifactStore, publish_snapshot
 from report_agent.storage.workspace import WorkspaceManager
 from report_agent.templates.engine import TemplateEngine
 from report_agent.templates.repository import TemplateRepository
@@ -243,8 +243,14 @@ class LatexPdfBackend:
         protected = {path.resolve() for path in original.resources}
         if any(target.resolve() in protected for _, target in publications):
             raise ValueError("Artifact destination would overwrite template resources.")
-        retained = tuple(
-            self._artifacts.publish(source, target) for source, target in publications
+        retained = publish_snapshot(
+            self._artifacts,
+            [
+                (source, target.relative_to(destination))
+                for source, target in publications
+            ],
+            destination,
+            protected,
         )
         if any(issue.severity == "error" for issue in compiled.diagnostics):
             return RenderResult(None, compiled.diagnostics, retained)

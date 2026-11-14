@@ -1,11 +1,14 @@
-# Resolving content before rendering
+# Resolving report content
 
 The optional `resolution` package prepares normal typed render inputs through
 injected interfaces. It contains no Snowflake/Postgres driver, database credentials,
-model SDK, or live SQL/LLM implementation. `ReportRenderer` does not depend on it.
+model SDK, or live SQL/LLM implementation. Inject a `ContentResolver` through
+`create_renderer(resolver=...)`. Normal rendering resolves query bindings and
+non-user sources before backend validation. The same path supports both metadata
+schemas, PDF and Office output. Explicit values override agent/generator inputs.
 
 ```text
-TemplateMetadata + supplied inputs + QuerySource bindings
+TemplateMetadata / OfficeMetadata + supplied inputs + QuerySource bindings
                          |
                          v
                   ContentResolver
@@ -17,7 +20,7 @@ TemplateMetadata + supplied inputs + QuerySource bindings
         ResolutionResult.inputs: TableInput / TextInput / other supplied values
                          |
                          v
-             unchanged RenderRequest -> ReportRenderer -> PDF
+             backend validation -> conversion -> PDF / DOCX / XLSX / PPTX
 ```
 
 ## Metadata
@@ -38,7 +41,9 @@ TemplateMetadata + supplied inputs + QuerySource bindings
 }
 ```
 
-`source` defaults to `user`. Only agent-sourced text accepts `prompt` and `uses`.
+`source` defaults to `user`. Agent-sourced text accepts `prompt` and `uses`.
+Office animation inputs also accept `source: generator` and table dependencies
+in `uses`; see the [Office guide](office-reports.md#animation-generation).
 An agent input requires a non-empty prompt and an explicit positive `max_chars`.
 Every `uses` name must identify a
 declared table. Agent-to-agent dependencies are not accepted; the supported
@@ -51,13 +56,14 @@ summarizes it normally. It needs no template placeholder and the renderer skips
 its conversion, styling, assets, and package requirements. Referencing a hidden
 input in a template is a `hidden_placeholder` error. A table in `uses` must still
 be resolved even if it is optional in metadata.
-Hidden inputs must be referenced by at least one agent input's `uses`; metadata
+Hidden inputs must be referenced by an agent or animation generator's `uses`; metadata
 rejects unreferenced hidden declarations as dead configuration.
 
 The prompt may be text or an identifier understood by your generator adapter.
 No prompt registry is built into the renderer. JSON/YAML metadata share the same
-schema. Normal rendering still requires the resulting content to be supplied;
-`source: agent` never makes the renderer invoke a model automatically.
+schema. Declaring a source does not install a model or database adapter. If an
+unsupplied input needs an unconfigured adapter, rendering returns a
+`resolution_failed` diagnostic with the input name, before conversion starts.
 
 ## Python interface
 
@@ -73,24 +79,74 @@ resolver = ContentResolver(
     summary_max_columns=20,
     summary_max_row_chars=8192,
 )
-resolved = resolver.resolve(
-    metadata,
-    inputs=supplied_inputs,
-    queries={
-        "sales": QuerySource(
-            connection="postgres_reports",
-            query="SELECT region, revenue FROM reporting.quarterly_sales",
-            row_limit=1000,
-        )
-    },
+renderer = create_renderer(resolver=resolver)
+result = renderer.render(
+    RenderRequest(
+        template_path,
+        metadata,
+        supplied_inputs,
+        output_path,
+        queries={
+            "sales": QuerySource(
+                connection="postgres_reports",
+                query="SELECT region, revenue FROM reporting.quarterly_sales",
+                row_limit=1000,
+            )
+        },
+    )
 )
-if resolved.diagnostics:
-    handle_resolution_failure(resolved.diagnostics)
-else:
-    result = create_renderer().render(
-        RenderRequest(template_path, metadata, resolved.inputs, output_path)
+if result.output_path is None:
+    handle_resolution_failure(result.diagnostics)
+```
+
+`RenderRequest.queries` defaults to an empty mapping. The renderer calls the
+resolver when queries are supplied or metadata declares an agent/generator source.
+It keeps generated media alive through conversion and publication, then removes
+the temporary resolution workspace on success, failure or cancellation.
+
+Explicit `resolver.resolve(...)` calls remain available for applications needing
+a separate preparation step. With that interface, the caller owns the media
+workspace lifetime and must check `ResolutionResult.diagnostics` before rendering.
+
+## CLI wiring
+
+Put adapter construction in an importable application module. A no-argument
+factory such as `myapp.reports:create_resolver` must return `ContentResolver`:
+
+```python
+def create_resolver():
+    return ContentResolver(
+        sources={"postgres_reports": my_read_only_data_source},
+        text_generator=my_text_generator,
     )
 ```
+
+Save query bindings in `queries.yaml`:
+
+```yaml
+queries:
+  sales:
+    connection: postgres_reports
+    query: SELECT region, revenue FROM reporting.quarterly_sales WHERE period = :period
+    params:
+      period: Q3
+    row_limit: 1000
+```
+
+```sh
+uv run report render templates/monthly_report \
+  --metadata templates/monthly_report/template.yaml \
+  --inputs data/monthly-inputs.yaml \
+  --resolver myapp.reports:create_resolver \
+  --queries queries.yaml \
+  --output output/monthly-report.docx
+```
+
+For this query-backed example, omit `sales` from the input manifest: a name cannot
+have both a direct value and a query. Agent text and animation values can still be
+overridden with `--text` / `--animation`. `--resolver` executes trusted application
+code chosen explicitly by the CLI caller; template metadata and query files cannot
+select Python modules. JSON query files use the same `queries` mapping.
 
 `DataSource.fetch(QuerySource)` must return a non-empty DataFrame. The resolver
 checks the returned row count and errors if the limit is exceeded; it never

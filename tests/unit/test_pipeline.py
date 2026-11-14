@@ -90,6 +90,46 @@ def test_pipeline_applies_defaults_publishes_and_cleans_workspace(build) -> None
     assert (request.template / "main.tex").read_text() == original
 
 
+def test_pdf_render_resolves_agent_text_and_replaces_artifacts(build):
+    from dataclasses import replace
+
+    from report_agent.resolution import ContentResolver
+
+    renderer, request, compiler, workspaces = build
+
+    class Generator:
+        def generate(self, request):
+            return "Generated title"
+
+    renderer._resolver = ContentResolver(sources={}, text_generator=Generator())
+    request.metadata["inputs"]["title"].update(source="agent", prompt="Write a title")
+    request = replace(request, inputs={})
+    result = renderer.render(request)
+    assert result.output_path and "Generated title" in compiler.source
+    stale = request.output.parent / "report.artifacts/stale.log"
+    stale.write_text("previous run")
+    assert renderer.render(request).output_path
+    assert not stale.exists()
+    assert list(workspaces.iterdir()) == []
+
+
+@pytest.mark.parametrize(
+    "text", ["bad\ufffeX", "bad\uffffX", "bad\ud800X", "bad\udfffX"]
+)
+def test_pdf_rejects_invalid_xml_characters_before_compilation(build, text):
+    from dataclasses import replace
+
+    renderer, request, compiler, _ = build
+    result = renderer.render(replace(request, inputs={"title": TextInput(text)}))
+    issue = result.diagnostics[0]
+    assert (issue.stage, issue.code, issue.input_name) == (
+        "input_validation",
+        "invalid_text",
+        "title",
+    )
+    assert compiler.calls == 0
+
+
 @pytest.mark.parametrize(
     "inputs, code",
     [

@@ -11,13 +11,16 @@ from report_agent.rendering.images import ImageRenderer
 from report_agent.rendering.registry import RendererRegistry
 from report_agent.rendering.tables import StylerTableRenderer
 from report_agent.rendering.text import TextRenderer
+from report_agent.resolution.resolver import ContentResolver
 from report_agent.storage.artifacts import LocalArtifactStore
 from report_agent.storage.workspace import TemporaryWorkspaceManager
 from report_agent.templates.engine import JinjaTemplateEngine
 from report_agent.templates.repository import LocalTemplateRepository
 
 
-def create_renderer(*, office_backend=None) -> ReportRenderer:
+def create_renderer(
+    *, office_backend=None, resolver: ContentResolver | None = None
+) -> ReportRenderer:
     """Assemble the default template, content, compiler, and storage services."""
     template_engine = JinjaTemplateEngine()
     renderers = RendererRegistry(
@@ -30,6 +33,7 @@ def create_renderer(*, office_backend=None) -> ReportRenderer:
     )
     return ReportRenderer(
         office_backend=office_backend,
+        resolver=resolver,
         metadata_loader=MetadataLoader(),
         templates=LocalTemplateRepository(),
         renderers=renderers,

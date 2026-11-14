@@ -3,9 +3,10 @@
 import os
 import signal
 import subprocess
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from math import isfinite
 from pathlib import Path
+from threading import Lock
 
 FILTERS = {
     "docx": "Office Open XML Text",
@@ -25,6 +26,10 @@ class ConversionError(ValueError):
 class LibreOfficeConverter:
     executable: str = "soffice"
     timeout_seconds: float = 120
+    _version: str | None = field(default=None, init=False, repr=False, compare=False)
+    _version_lock: Lock = field(
+        default_factory=Lock, init=False, repr=False, compare=False
+    )
 
     def __post_init__(self):
         if not isfinite(self.timeout_seconds) or self.timeout_seconds <= 0:
@@ -51,30 +56,8 @@ class LibreOfficeConverter:
             str(source.resolve()),
         ]
         log = directory / "conversion.log"
-        try:
-            version = (
-                subprocess.run(
-                    [self.executable, "--version"],
-                    capture_output=True,
-                    timeout=min(10, self.timeout_seconds),
-                    check=True,
-                )
-                .stdout.decode(errors="replace")
-                .strip()
-            )
-        except FileNotFoundError as exc:
-            raise ConversionError(
-                "converter_not_found", f"Converter not found: {self.executable}"
-            ) from exc
-        except subprocess.TimeoutExpired as exc:
-            log.write_text("LibreOffice version probe timed out.")
-            raise ConversionError(
-                "converter_timeout", "LibreOffice version probe timed out."
-            ) from exc
-        except (subprocess.SubprocessError, OSError) as exc:
-            raise ConversionError(
-                "converter_failed", f"Cannot probe converter version: {exc}"
-            ) from exc
+        environment = self._environment(directory)
+        version = self._get_version(environment, log)
         (directory / "version.txt").write_text(version)
 
         try:
@@ -84,10 +67,7 @@ class LibreOfficeConverter:
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
                 start_new_session=os.name == "posix",
-                env={
-                    **os.environ,
-                    "XDG_CACHE_HOME": str(directory.resolve() / "cache"),
-                },
+                env=environment,
             )
         except FileNotFoundError as exc:
             raise ConversionError(
@@ -97,6 +77,15 @@ class LibreOfficeConverter:
             output, _ = process.communicate(timeout=self.timeout_seconds)
         except BaseException as exc:
             self._kill(process)
+            if isinstance(exc, KeyboardInterrupt):
+                # Cancellation must not block on a pipe inherited by descendants.
+                if process.stdout is not None:
+                    process.stdout.close()
+                try:
+                    process.wait(timeout=1)
+                except subprocess.TimeoutExpired:
+                    pass
+                raise
             output, _ = process.communicate()
             log.write_bytes(output)
             if isinstance(exc, subprocess.TimeoutExpired):
@@ -115,6 +104,68 @@ class LibreOfficeConverter:
                 "missing_output", "LibreOffice produced no output; see conversion.log."
             )
         return target
+
+    @staticmethod
+    def _environment(directory: Path) -> dict[str, str]:
+        environment = {
+            key: os.environ[key]
+            for key in (
+                "PATH",
+                "LANG",
+                "LC_ALL",
+                "LC_CTYPE",
+                "TZ",
+                "SYSTEMROOT",
+                "WINDIR",
+            )
+            if key in os.environ
+        }
+        for key, name in {
+            "XDG_CACHE_HOME": "cache",
+            "XDG_CONFIG_HOME": "config",
+            "XDG_DATA_HOME": "data",
+            "XDG_RUNTIME_DIR": "runtime",
+            "TMPDIR": "tmp",
+        }.items():
+            path = directory.resolve() / name
+            path.mkdir(mode=0o700, exist_ok=True)
+            environment[key] = str(path)
+        return environment
+
+    def _get_version(self, environment: dict[str, str], log: Path) -> str:
+        with self._version_lock:
+            if self._version is None:
+                object.__setattr__(
+                    self, "_version", self._probe_version(environment, log)
+                )
+            return self._version
+
+    def _probe_version(self, environment: dict[str, str], log: Path) -> str:
+        try:
+            return (
+                subprocess.run(
+                    [self.executable, "--version"],
+                    capture_output=True,
+                    timeout=min(10, self.timeout_seconds),
+                    check=True,
+                    env=environment,
+                )
+                .stdout.decode(errors="replace")
+                .strip()
+            )
+        except FileNotFoundError as exc:
+            raise ConversionError(
+                "converter_not_found", f"Converter not found: {self.executable}"
+            ) from exc
+        except subprocess.TimeoutExpired as exc:
+            log.write_text("LibreOffice version probe timed out.")
+            raise ConversionError(
+                "converter_timeout", "LibreOffice version probe timed out."
+            ) from exc
+        except (subprocess.SubprocessError, OSError) as exc:
+            raise ConversionError(
+                "converter_failed", f"Cannot probe converter version: {exc}"
+            ) from exc
 
     @staticmethod
     def _kill(process):

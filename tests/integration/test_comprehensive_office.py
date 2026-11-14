@@ -95,7 +95,8 @@ def test_pptx_explicit_slide_order_typography_and_animation(comprehensive):
         assert any(e.get("sz") == "3000" for e in slide.findall(".//a:rPr", ns))
         assert len(slide.findall(".//a:tr", ns)) == 6
         fills = [
-            e.get("val") for e in slide.findall(".//a:tcPr/a:solidFill/a:srgbClr", ns)
+            e.get("val").upper()
+            for e in slide.findall(".//a:tcPr/a:solidFill/a:srgbClr", ns)
         ]
         assert "18343D" in fills and "F1F6F7" in fills and "FFFFFF" in fills
         media = [

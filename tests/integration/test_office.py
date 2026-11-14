@@ -111,42 +111,45 @@ def test_query_to_animation_embedded_in_portable_deck(tmp_path):
             return super().fetch(source)
 
     source = CountingSource()
-    media = tmp_path / "media"
-    resolved = ContentResolver(
+
+    class RecordingGenerators(AnimationGenerators):
+        def generate(self, *args, **kwargs):
+            asset = super().generate(*args, **kwargs)
+            self.asset = asset
+            self.data = asset.path.read_bytes()
+            with Image.open(asset.path) as image:
+                assert image.n_frames == 12
+            return asset
+
+    generators = RecordingGenerators({"sales_over_time": example.sales_over_time})
+    resolver = ContentResolver(
         sources={"demo": source},
-        animation_generators=AnimationGenerators(
-            {"sales_over_time": example.sales_over_time}
-        ),
-    ).resolve(
-        metadata,
-        queries={
-            "sales_data": QuerySource(connection="demo", query="fixture", row_limit=100)
-        },
-        media_workspace=media,
+        animation_generators=generators,
     )
-    assert not resolved.diagnostics, resolved.diagnostics
-    assert source.calls == 1
-    asset = resolved.inputs["sales_animation"]
-    assert isinstance(asset, AnimationInput)
-    data = asset.path.read_bytes()
-    with Image.open(asset.path) as image:
-        assert image.n_frames == 12
-    result = create_renderer().render(
+    result = create_renderer(resolver=resolver).render(
         RenderRequest(
             ROOT / "examples/office_pptx",
             metadata,
-            resolved.inputs,
+            {},
             tmp_path / "animated.pptx",
+            queries={
+                "sales_data": QuerySource(
+                    connection="demo", query="fixture", row_limit=100
+                )
+            },
         )
     )
     assert result.output_path, result.diagnostics
+    assert source.calls == 1
+    assert isinstance(generators.asset, AnimationInput)
+    assert not generators.asset.path.exists()
+    assert not generators.asset.poster_path.exists()
     portable = tmp_path / "portable"
     portable.mkdir()
     shutil.copy(result.output_path, portable / "deck.pptx")
-    shutil.rmtree(media)
     with ZipFile(portable / "deck.pptx") as archive:
         assert any(
-            archive.read(n) == data
+            archive.read(n) == generators.data
             for n in archive.namelist()
             if n.startswith("ppt/media/")
         )

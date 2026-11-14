@@ -1,7 +1,6 @@
 """Fetch example data, generate a finite animation, and build an embedded PPTX."""
 
 from pathlib import Path
-from tempfile import TemporaryDirectory
 
 import pandas as pd
 from matplotlib.animation import FuncAnimation
@@ -41,32 +40,29 @@ def sales_over_time(tables, options):
     return FuncAnimation(figure, update, frames=12, interval=250, repeat=True)
 
 
-def main():
-    metadata = MetadataLoader().load(ROOT / "template.yaml")
-    resolver = ContentResolver(
+def create_resolver():
+    """Application-owned adapter wiring, also usable as a CLI resolver factory."""
+    return ContentResolver(
         sources={"demo": DemoDataSource()},
         animation_generators=AnimationGenerators({"sales_over_time": sales_over_time}),
     )
-    with TemporaryDirectory(prefix="report-animation-") as directory:
-        resolved = resolver.resolve(
+
+
+def main():
+    metadata = MetadataLoader().load(ROOT / "template.yaml")
+    result = create_renderer(resolver=create_resolver()).render(
+        RenderRequest(
+            ROOT,
             metadata,
+            {},
+            Path("output/office/animated-sales.pptx"),
             queries={
                 "sales_data": QuerySource(
                     connection="demo", query="demo sales", row_limit=100
                 )
             },
-            media_workspace=Path(directory),
         )
-        if resolved.diagnostics:
-            raise RuntimeError(resolved.diagnostics)
-        result = create_renderer().render(
-            RenderRequest(
-                ROOT,
-                metadata,
-                resolved.inputs,
-                Path("output/office/animated-sales.pptx"),
-            )
-        )
+    )
     if result.output_path is None:
         raise RuntimeError(result.diagnostics)
     print(result.output_path)

@@ -30,9 +30,24 @@ uv run python examples/office_xlsx/render.py
 uv run python examples/office_pptx/render.py
 ```
 
+The animation example also runs through the CLI with its application resolver
+factory and query bindings. From the repository root, `python -m` makes the
+example module importable:
+
+```sh
+uv run python -m report_agent render examples/office_pptx \
+  --metadata examples/office_pptx/template.yaml \
+  --resolver examples.office_pptx.render:create_resolver \
+  --queries examples/office_pptx/queries.yaml \
+  --output output/office/cli-animated-sales.pptx
+```
+
 Outputs go under `output/office/`. Each has a sibling `.artifacts` directory with
-expanded XML, a build manifest, staged assets, and the conversion log. Failure
-preserves the previous output and available expanded source/logs. Use distinct
+expanded XML, a build manifest, staged assets, and the conversion log. Artifacts
+are published as a replacement snapshot, removing files from earlier runs.
+Failure preserves the previous output and attempts to retain current expanded
+source/logs; retention failures are separate warnings and preserve the original
+conversion diagnostic. Use distinct
 output stems for concurrent reports, including different formats.
 
 The PPTX example injects a sample data source through `ContentResolver`, fetches a
@@ -87,8 +102,10 @@ Declare a v2 `animation` input with `source: generator`, a registered `generator
 name, table dependencies in `uses`, and bounded `export` options. The example YAML
 shows the full contract. The generator receives copied DataFrames and returns a
 finite Matplotlib `Animation` with exactly `ceil(fps * duration_seconds)` frames.
-Keep the resolution workspace alive until rendering finishes. The example
-`TemporaryDirectory` block demonstrates the required lifetime.
+Pass the resolver to `create_renderer(resolver=...)` and query bindings to
+`RenderRequest.queries`. The normal render path owns generated media until
+conversion finishes. Explicit resolution remains supported; that interface
+requires the caller to keep its media workspace alive until rendering finishes.
 
 The animation registry currently requires a dedicated single-threaded macOS/Linux
 rendering worker and uses an owned forked child. It enforces timeouts and kills
@@ -131,12 +148,25 @@ renderer = create_renderer(
 ```
 
 Each conversion has a private user profile, source/export directories, captured
-logs, and bounded process lifetime. Templates are trusted inputs. External links,
-DTD/entities, scripts, and embedded executable objects are outside the supported
-subset. Private profiles do not replace process/filesystem isolation for hosted
-untrusted-template uploads.
+logs, and bounded process lifetime. Version probing is cached per converter
+instance, including across repeated calls on one renderer. The subprocess
+environment permits PATH, locale/timezone and Windows system-directory settings;
+XDG and temporary paths point into the private workspace. HOME and unrelated
+application environment variables are not forwarded.
+
+Templates remain trusted inputs. External links (including hyperlinks),
+DTD/entities, scripts, embedded executable objects, DDE sources and calls to
+WEBSERVICE/HYPERLINK/DDE are unsupported. These checks and environment filtering
+do not replace process/filesystem/network isolation for hosted untrusted uploads.
 
 ## Verification status
+
+[CI](../.github/workflows/ci.yml) installs LibreOffice Writer/Calc/Impress and the
+example fonts on Ubuntu 24.04, then runs Ruff and pytest, including real Office
+exports. It records `soffice --version`, exact system package versions, Python and
+uv versions alongside JUnit results in the workflow artifacts. Color assertions
+ignore hexadecimal case. PDF integration tests skip if texres is unavailable;
+local development should run them with texres installed.
 
 Automated checks cover schema validation, XML escaping and data types, slot
 compatibility, output protection, conversion failures, formula cached results,
@@ -152,7 +182,7 @@ claim is made by the package tests.
 
 ## Local implementation checks (November 13, 2026)
 
-The implementation branch passed 182 tests, Ruff lint/format checks, and a wheel /
+The implementation branch passed 216 tests, Ruff lint/format checks, and a wheel /
 source distribution build. Real conversion tests include native DOCX content and
 figure embedding, concurrent private profiles, XLSX formula cached values, and a
 query-generated GIF retained in a portable PPTX package.

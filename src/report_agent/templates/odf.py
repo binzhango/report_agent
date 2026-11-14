@@ -19,6 +19,7 @@ from report_agent.models.inputs import (
     TableInput,
     TextInput,
 )
+from report_agent.validation.text import invalid_xml_text
 
 NS = {
     "office": "urn:oasis:names:tc:opendocument:xmlns:office:1.0",
@@ -34,6 +35,10 @@ NS = {
 }
 for prefix, uri in NS.items():
     ET.register_namespace(prefix, uri)
+
+_EXTERNAL_FORMULA = re.compile(
+    r"(?<!\w)(?:\w+\.)*(?:WEBSERVICE|HYPERLINK|DDE)\s*\(", re.IGNORECASE
+)
 
 
 def q(name):
@@ -59,8 +64,8 @@ def dimension(value):
 
 def plain(element, value):
     text = str(value)
-    if any(ord(c) < 32 and c not in "\n\r\t" for c in text):
-        raise ValueError("Text contains XML control characters.")
+    if invalid_xml_text(text):
+        raise ValueError("Text contains characters forbidden by XML 1.0.")
     # ODF explicitly represents repeated spaces, tabs and line breaks.
     for part in re.split(r"( +|\t|\n)", text.replace("\r\n", "\n").replace("\r", "\n")):
         if not part:
@@ -100,6 +105,18 @@ class OdfTemplate:
         if self.root.find(f"office:body/{expected}", NS) is None:
             raise ValueError("ODF body does not match output format.")
         for e in self.root.iter():
+            if e.tag in {
+                q("office:dde-source"),
+                q("table:dde-link"),
+                q("table:dde-links"),
+                q("text:dde-connection-decls"),
+                q("text:dde-connection"),
+            }:
+                raise ValueError("DDE template sources are unsupported.")
+            formula = e.get(q("table:formula"), "")
+            # Ignore quoted string literals; only reject executable function calls.
+            if _EXTERNAL_FORMULA.search(re.sub(r'"(?:[^"]|"")*"', '""', formula)):
+                raise ValueError("External-data/link formulas are unsupported.")
             if e.tag == q("office:scripts") and (len(e) or e.text and e.text.strip()):
                 raise ValueError("Executable template content is unsupported.")
             if e.tag in {q("draw:object"), q("draw:object-ole"), q("draw:plugin")}:

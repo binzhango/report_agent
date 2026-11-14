@@ -74,6 +74,11 @@ class RenderValidator:
             if name not in inputs:
                 if definition.required and definition.default is None:
                     issue("missing_input", "Required input was not supplied.", name)
+                if definition.default is not None:
+                    for code, message in text_issues(
+                        TextInput(definition.default), definition
+                    ):
+                        issue(code, message, name)
                 continue
             value = inputs[name]
             if not isinstance(value, types[definition.type]):

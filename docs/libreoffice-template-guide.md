@@ -561,19 +561,22 @@ inputs:
       height_px: 300
 ```
 
-The application registers `sales_over_time`, provides a data-source adapter and
-calls `ContentResolver` before rendering. The sequence is:
+The application registers `sales_over_time` and provides a data-source adapter in
+`ContentResolver`. Pass it to `create_renderer(resolver=...)`, and supply query
+bindings through `RenderRequest.queries`. Rendering performs the sequence:
 
 1. Fetch a bounded DataFrame through the application-owned adapter.
 2. Pass that data to a registered Matplotlib animation function.
 3. Export the animation as a finite GIF and a PNG poster.
 4. Expand the FODP slot and convert the deck to PPTX.
-5. Verify that slide-referenced media contains the original animated GIF.
+5. Verify that media reachable through slides, layouts or masters contains the
+   original animated GIF.
 
 The [runnable animation example](../examples/office_pptx/render.py) implements all
 five steps. Its generator produces 12 frames for 4 fps × 3 seconds. In general,
-provide exactly `ceil(fps * duration_seconds)` frames. Keep the resolver's
-temporary media workspace alive until the render call finishes.
+provide exactly `ceil(fps * duration_seconds)` frames. The renderer owns the
+temporary media workspace through conversion and cleans it afterward. If you
+call `resolver.resolve(...)` separately, keep its workspace alive through rendering.
 
 If you already have a looping GIF, declare an ordinary `type: animation` input
 and supply `AnimationInput(Path("chart.gif"), Path("poster.png"))`; omit the
@@ -689,10 +692,12 @@ same prepared business data. A Word layout cannot simply be renamed to become a
 slide deck or workbook.
 
 Start with direct `TextInput`, `TableInput` and `FigureInput` values. Add
-`ContentResolver` when the application needs query-backed tables, generated
-summaries or animations. Queries and generator implementations live in application
-code; a slot does not execute SQL or Python. See the
-[content resolution guide](content-resolution.md) for adapter contracts.
+`ContentResolver` through `create_renderer(resolver=...)` when the application
+needs query-backed tables, generated summaries or animations. Queries are supplied
+through `RenderRequest.queries`; implementations live in application code. A slot
+does not execute SQL or Python. The CLI accepts `--resolver module:factory` and
+`--queries queries.yaml` for the same path. See the
+[content resolution guide](content-resolution.md) for wiring and adapter contracts.
 
 For generated summaries, v2 metadata supports text with `source: agent`, a
 `prompt`, table dependencies in `uses`, and `max_chars`. The application must
@@ -739,7 +744,10 @@ output/
 
 `expanded.fodt` shows the exact source after slot replacement. `build.json`
 records the engine/version, output format, source hash and animation metadata
-when applicable. Conversion logs explain engine failures. Early validation errors
+when applicable. Each artifact publication replaces the previous directory as a
+complete snapshot, so old hash-named media and failure logs do not accumulate.
+If staging the replacement fails, the previous snapshot remains intact.
+Conversion logs explain engine failures. Early validation errors
 may occur before artifacts exist. A failed build preserves the previous final
 report; do not mistake an older file on disk for a successful current build.
 

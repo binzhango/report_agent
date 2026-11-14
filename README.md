@@ -1,567 +1,184 @@
 # Report Agent
 
-Report Agent is a Python library and CLI for generating PDF reports from complete
-LaTeX templates. The template defines the document structure, JSON/YAML metadata
-defines the named inputs and their presentation, and runtime values supply text,
-images, charts, and tables.
+Generate PDF, DOCX, XLSX and PPTX reports from reusable templates and typed runtime
+content. Templates own document structure and design; application inputs provide
+text, images, Matplotlib charts and pandas tables. An optional injected resolver
+fetches data and generates summaries or animations during the normal render call.
 
-The project targets recurring business reports with controlled typography,
-financial tables, charts, and printable layouts. An optional content resolver
-prepares query results and generated summaries through application-owned adapters.
+| Output | Template | Metadata | Engine |
+| --- | --- | --- | --- |
+| PDF | Complete LaTeX (`.tex`) | Schema v1 | texres |
+| DOCX | Flat OpenDocument Text (`.fodt`) | Schema v2 | LibreOffice Writer |
+| XLSX | Flat OpenDocument Spreadsheet (`.fods`) | Schema v2 | LibreOffice Calc |
+| PPTX | Flat OpenDocument Presentation (`.fodp`) | Schema v2 | LibreOffice Impress |
 
-## Rendering model
+Office output is experimental. Native tables, document sections, named workbook
+tabs, formulas and embedded animated GIFs are supported. Final layout and animation
+playback need review in the recipient's Office application. See the
+[Office compatibility reference](docs/office-reports.md).
 
-The placeholder `<<summary>>` maps to `inputs.summary` in metadata and
-`summary` in the runtime input mapping. Its content renderer prepares a fragment,
-the presentation layer applies its style, and Jinja inserts it into the document.
+## Installation
 
-~~~mermaid
-flowchart LR
-    Sources[Queries and supplied content] --> Resolver[Optional ContentResolver]
-    Resolver --> Inputs[Typed runtime inputs]
-    Direct[Caller content] --> Inputs
-    Template[Complete TeX template] --> Renderer[ReportRenderer]
-    Metadata[JSON / YAML / Python metadata] --> Renderer
-    Inputs --> Renderer
-    Renderer --> Prepare[Validate, stage, render, style, expand]
-    Prepare --> Packages[Check required packages]
-    Packages --> Compiler[Compile with texres]
-    Compiler --> Result[PDF, artifacts, diagnostics]
-~~~
+Use Python 3.12 or later and [uv](https://docs.astral.sh/uv/). From the repository root:
 
-Templates own the preamble, page geometry, static sections, headers, footers, and
-placeholder placement. Metadata supplies content options and shared styling.
-User and agent text is escaped as plain text. Blank lines preserve paragraphs.
-
-| Metadata type | Python input | Supported content |
-| --- | --- | --- |
-| `text` | `TextInput(str)` | Plain text with optional defaults and character limits |
-| `image` | `ImageInput(Path)` | PNG, JPEG, or PDF |
-| `graph` | `GraphInput(Path)` | Existing PNG, JPEG, or PDF chart |
-| `graph` | `FigureInput(Figure)` | Live matplotlib Figure exported as vector PDF |
-| `table` | `TableInput(DataFrame)` | Native LaTeX tables generated through pandas Styler |
-
-## Office output (experimental)
-
-The LibreOffice backend builds editable DOCX/XLSX and PPTX with embedded animated
-Matplotlib GIFs from complete Flat XML templates. Use metadata schema v2 for Office
-output; schema v1 retains the existing LaTeX/PDF workflow. See the
-[step-by-step LibreOffice template guide](docs/libreoffice-template-guide.md)
-to prepare a template, reuse a branded DOCX sample, and generate reports through
-Python or the CLI. The
-[Office report guide](docs/office-reports.md) covers configuration, examples,
-and current compatibility limits. LibreOffice is an external dependency only
-for Office jobs. Desktop PowerPoint playback still requires target-viewer review.
-
-Build the comprehensive Office examples, sharing the PDF example's source data:
-
-~~~sh
-uv run python examples/office_comprehensive/render.py
-~~~
-
-The result is an eight-page document, a nine-slide presentation with an embedded
-Matplotlib animation, and a seven-tab workbook with calculated summary formulas.
-See the [example walkthrough](examples/office_comprehensive/README.md) and
-[template authoring guide](docs/office-template-authoring.md) for page styles,
-page breaks, slide/frame definitions, tabs, formulas, and table styling.
-
-## Setup with uv and a virtual environment
-
-Use Python 3.12 or later and [uv](https://docs.astral.sh/uv/). The repository's
-`.python-version` selects Python 3.12 and `uv.lock` records dependency versions.
-Run these commands from the repository root.
-
-~~~sh
+```sh
 uv sync --locked
 uv run report --help
-uv run report version
-~~~
+```
 
-`uv sync` creates `.venv` and installs the project and development dependencies.
-`uv run` uses that environment automatically. Optional shell activation is
-`source .venv/bin/activate`.
+Install the external engine for the formats you use:
 
-PDF generation requires the external [texres compiler](https://github.com/leoliu0/texres)
-on `PATH`. Verify it with `texres --version`. Examples and compiler integration
-tests have been exercised with texres 0.7.10.
+- PDF: [texres](https://github.com/leoliu0/texres) on `PATH`; verify with
+  `texres --version`. Local integration checks have used version 0.7.10.
+- Office: LibreOffice with `soffice` on `PATH`; verify with `soffice --version`.
+  The [template guide](docs/libreoffice-template-guide.md#10-configure-libreoffice-and-inspect-results)
+  also shows how to configure an explicit executable path.
+- Install the fonts used by your templates. Poppler supplies `pdftotext`,
+  `pdfinfo` and `pdftoppm` for PDF inspection and example previews.
 
-For Parquet input, install the optional extra.
-
-~~~sh
-uv sync --locked --extra parquet
-~~~
-
-Use `uv run --extra parquet ...` for commands that need to keep the extra
-installed. CSV input works with the standard installation.
-
-Poppler's `pdftotext` and `pdfinfo` support PDF inspection and integration
-tests. `pdftoppm` renders page previews for visual review.
+CSV input is included. For Parquet, use `uv sync --locked --extra parquet` and
+retain the extra with `uv run --extra parquet ...`.
 
 ## Quick start
 
-Render the included plain-text template from the command line.
+Generate a PDF from the included template:
 
-~~~sh
+```sh
 uv run report render examples/plain_text \
-  --metadata examples/plain_text/template.json \
+  --metadata examples/plain_text/template.yaml \
   --text 'title=Quarterly review' \
   --text 'summary=Revenue increased by 12%.' \
   --output output/pdf/review.pdf
-~~~
+```
 
-Metadata supplies defaults for the reporting period and notes. The optional
-footer can be omitted. Use `template.yaml` in the same directory for equivalent
-YAML metadata.
+Generate the comprehensive Office examples:
 
-Build the comprehensive example to see images, both graph input forms,
-financial tables, heatmaps, grouped rows, and a multi-page appendix.
+```sh
+uv run python examples/office_comprehensive/render.py
+# Work on one format:
+uv run python examples/office_comprehensive/render.py --only pptx
+```
 
-~~~sh
-uv run python examples/comprehensive/render.py
-~~~
-
-The result is `output/pdf/comprehensive-report.pdf`. The
-[comprehensive walkthrough](docs/comprehensive-example-walkthrough.md) maps each
-PDF section to its template, metadata, runtime values, and rendering classes.
-
-## Author a template and metadata
-
-Create `my_report/main.tex` with the following content. Keep bundles focused on
-the resources used by the report because their non-hidden files are copied into
-the build workspace.
-
-~~~tex
-\documentclass[11pt]{article}
-\usepackage[margin=25mm]{geometry}
-\usepackage{graphicx,booktabs}
-\usepackage[table]{xcolor}
-\setlength{\parindent}{0pt}
-\begin{document}
-<<logo>>\par
-\section*{<<title>>}
-<<summary>>
-\subsection*{Revenue by region}
-<<sales>>\par
-\medskip
-<<trend>>\par
-\end{document}
-~~~
-
-Create `my_report/template.json` to declare those placeholders.
-
-~~~json
-{
-  "schema_version": 1,
-  "id": "quarterly_review",
-  "entrypoint": "main.tex",
-  "compiler": {
-    "engine": "xelatex",
-    "table_overflow_tolerance_pt": 2.0
-  },
-  "inputs": {
-    "title": {"type": "text", "max_chars": 120},
-    "summary": {
-      "type": "text",
-      "max_chars": 2000,
-      "style": {
-        "typography": {"font_size_pt": 11, "line_height_pt": 16},
-        "layout": {"display": "block", "space_after_pt": 12}
-      }
-    },
-    "sales": {
-      "type": "table",
-      "backend": "styler",
-      "preset": "financial",
-      "precision": 2,
-      "show_index": false
-    },
-    "logo": {"type": "image", "required": false, "width": "20mm"},
-    "trend": {"type": "graph", "required": false, "width": "0.9\\linewidth"}
-  }
-}
-~~~
-
-YAML files, Python mappings, and validated `TemplateMetadata` objects share this
-schema. Unknown fields, duplicate file mapping keys, and incompatible options
-produce validation errors.
-
-Jinja uses `<<...>>` for values, `<%...%>` for statements, and `<#...#>` for
-comments. Use `<% include "summary.tex" %>` for a statically named partial
-containing dynamic placeholders. Ordinary TeX `\input{...}` resources are
-copied and processed by the compiler.
+Outputs appear in `output/office_comprehensive/`: a document with portrait and
+landscape sections, a nine-slide deck with an animated chart, and a seven-tab
+workbook with calculated summaries. Follow the
+[LibreOffice template tutorial](docs/libreoffice-template-guide.md) to import a
+branded DOCX, preserve headers/footers, add slots and supply your own data.
 
 ## Python API
 
-This example renders `my_report` with a DataFrame and a live Figure. The logo is
-optional and can be omitted.
-
-~~~python
+```python
 from pathlib import Path
 
-import pandas as pd
-from matplotlib.figure import Figure
+from report_agent import RenderRequest, TextInput, create_renderer
 
-from report_agent import (
-    FigureInput,
-    RenderRequest,
-    TableInput,
-    TextInput,
-    create_renderer,
-)
-
-figure = Figure(figsize=(6, 3))
-axis = figure.subplots()
-axis.plot(["Q1", "Q2", "Q3"], [1100, 1250, 1430], marker="o")
-axis.set_ylabel("Revenue")
-
+bundle = Path("examples/plain_text")
 result = create_renderer().render(
     RenderRequest(
-        template=Path("my_report"),
-        metadata=Path("my_report/template.json"),
+        template=bundle,
+        metadata=bundle / "template.yaml",
         inputs={
-            "title": TextInput("Quarterly sales review"),
-            "summary": TextInput("Revenue increased by 12% across the period."),
-            "sales": TableInput(
-                pd.DataFrame({"Region": ["EMEA", "APAC"], "Revenue": [1320.50, 930.25]})
-            ),
-            "trend": FigureInput(figure),
+            "title": TextInput("Quarterly review"),
+            "summary": TextInput("Revenue increased by 12%."),
         },
-        output=Path("output/pdf/quarterly-review.pdf"),
+        output=Path("output/pdf/review.pdf"),
     )
 )
-
 for issue in result.diagnostics:
     print(issue.severity, issue.stage, issue.code, issue.input_name, issue.message)
-
-if result.pdf_path is None:
+if result.output_path is None:
     raise SystemExit(1)
-print(result.pdf_path)
-~~~
+print(result.output_path)
+```
 
-Use `Path` objects for template, metadata-file, output, and asset paths.
-`RenderRequest.metadata` also accepts a Python mapping or `TemplateMetadata`.
+The same API dispatches schema-v2 metadata to LibreOffice. Use `Path` objects for
+files; metadata also accepts a mapping or validated model. `output_path` applies
+to every format; `pdf_path` remains a compatibility alias for PDF output.
 
-Figure export preserves caller-owned dimensions and axes layout. Drawing may
-populate Matplotlib caches. Figures using `usetex=True` must be exported by the
-caller and supplied as graph files.
-
-## CLI inputs and manifests
-
-The `report render` command accepts repeated named assignments.
-
-| Option | Value |
+| Runtime value | Content |
 | --- | --- |
-| `--text` | `NAME=VALUE` |
-| `--table` | `NAME=data.csv` or `NAME=data.parquet` |
-| `--image` | `NAME=logo.png`, JPEG, or PDF |
-| `--graph` | `NAME=trend.pdf`, PNG, or JPEG |
-| `--inputs` | JSON or YAML runtime-content manifest |
-| `--input-root` | Allowed base directory for referenced asset paths |
+| `TextInput(str)` | Plain text, escaped and validated; template controls formatting |
+| `TableInput(DataFrame)` | Native report table; an entire data tab in Calc |
+| `ImageInput(Path)` | Image file; Office accepts PNG/JPEG, PDF also accepts PDF images |
+| `GraphInput(Path)` | Existing chart image; same format restrictions |
+| `FigureInput(Figure)` | Live Matplotlib figure; exported as PDF for TeX or PNG for Office |
+| `AnimationInput(gif_path, poster_path)` | Animated GIF embedded in PPTX |
 
-For the custom template above, save the following as `my_report/inputs.yaml`.
+Office slots use XML names such as `<ra:text name="summary"/>`; LaTeX uses
+`<<summary>>`. Both match `inputs.summary` in metadata and `"summary"` at runtime.
+Office styles live in Flat ODF; LaTeX also supports per-input presentation metadata.
 
-~~~yaml
-inputs:
-  title: Quarterly sales review
-  summary:
-    type: text
-    text: Revenue increased by 12% across the period.
-  sales:
-    type: table
-    path: data/sales.csv
-~~~
+## CLI inputs and resolution
 
-Create `my_report/data/sales.csv`.
+`report render` accepts repeated `--text NAME=VALUE`, `--table NAME=CSV_OR_PARQUET`,
+`--image NAME=PATH`, `--graph NAME=PATH` and `--animation NAME=GIF_PATH` flags.
+`--inputs inputs.yaml` accepts a JSON/YAML content manifest. Manifest asset paths
+are relative to that file; explicit flag paths are relative to the working
+directory. Explicit flags override manifest values. `--input-root DIRECTORY`
+restricts referenced asset paths.
 
-~~~csv
-Region,Revenue
-EMEA,1320.50
-APAC,930.25
-~~~
+For query-backed data or generated content, inject
+`create_renderer(resolver=ContentResolver(...))` and supply query bindings through
+`RenderRequest.queries`. The renderer resolves tables, agent text and animations
+before backend validation and keeps generated media alive through conversion.
+Application adapters own database access and model/generator implementations.
+Missing adapters return resolution diagnostics; supplied values override generation.
 
-~~~sh
-uv run report render my_report \
-  --metadata my_report/template.json \
-  --inputs my_report/inputs.yaml \
-  --input-root my_report \
-  --text 'title=Reviewed quarterly sales' \
-  --output output/pdf/quarterly-review.pdf
-~~~
+The CLI exposes the same flow through `--resolver myapp.reports:create_resolver`
+and `--queries queries.yaml`. The factory must be importable, take no arguments
+and return `ContentResolver`. It is explicit trusted application code, never a
+module selected by a template. See the [resolver guide](docs/content-resolution.md)
+for complete Python and CLI wiring, query bounds and generated-text contracts.
 
-To add existing assets, use descriptors such as
-`logo: {type: image, path: assets/logo.png}` and
-`trend: {type: graph, path: assets/trend.pdf}` inside the manifest's `inputs`
-mapping. Create the referenced files before using those entries. JSON manifests
-use the same fields.
+## Artifacts and failures
 
-Manifest paths resolve relative to the manifest file. Explicit flag paths resolve
-relative to the working directory. Explicit flags override manifest values,
-and duplicate names across explicit flags are rejected.
+A report has a sibling `<output-stem>.artifacts/` directory containing expanded
+source, available logs and staged assets; Office builds also retain `build.json`
+and the engine version. Publication replaces the artifact snapshot instead of
+accumulating files from old runs. Failed conversions preserve the previous final
+report and attempt to retain current diagnostic artifacts. Check the returned
+result, since an old output file can still exist after a failed build.
 
-For agent-created manifests, `--input-root` restricts referenced asset paths to
-an allowed directory after resolving parent traversal and symlinks. Python
-applications can use `InputFileLoader(base_directory=...)` for the same check.
-The local CLI permits arbitrary asset paths when that option is omitted.
-The restriction assumes the allowed filesystem stays stable during the build.
-
-The CLI prints diagnostics to stderr and the completed PDF path to stdout.
-Rendering failures exit with status 1. Invalid arguments exit with status 2.
-Live Figure inputs enter through the Python API.
-
-## Content and presentation options
-
-| Field | Meaning and default |
-| --- | --- |
-| `required` | Whether a value must be supplied, default `true` |
-| `default` | Optional text fallback |
-| `max_chars` | Positive text character limit, required for agent inputs |
-| `visible` | Whether content appears in the template, default `true` |
-| `width` | Image/graph width, default `1\linewidth` |
-| `backend` | Table strategy, currently `styler` |
-| `preset` | `financial`, `comparison`, `heatmap_sequential`, or `heatmap_diverging` |
-| `precision` | Optional 0–8 decimal places for non-integral numeric values |
-| `show_index` | Whether table index labels appear, shown by default |
-| `longtable` | Use a table that can paginate vertically |
-| `style` | Shared typography, block layout, heading, and container settings |
-
-Omitted precision preserves numeric display precision. Integer counts retain
-integer formatting. Tables support escaped labels/cells, MultiIndex headers and
-row groups, and missing values displayed as `--`. Heatmaps require numeric
-columns and finite usable data. Colored presets require unique row/column labels.
-
-Every content type uses `inputs.<name>.style`. Supported settings include font
-size, leading, paragraph spacing, color, bold/italic, alignment, headings,
-spacing, page transitions, and bordered background boxes. Paragraph and container
-settings require `layout.display: block`. Empty optional content emits an empty
-fragment.
-
-`longtable: true` lets TeX use the available page space and continue on later
-pages with repeated headers. Place it in breakable document flow. Box containers
-use an unbreakable minipage and must fit on one page. Metadata rejects a boxed
-longtable.
-
-Landscape pages and sideways tables are template-controlled. Automatic column
-splitting, wrapping policies, and orientation selection are planned features.
-See the [style guide](docs/placeholder-styles.md) and
-[table layout proposal](docs/table-layout-design.md).
-
-## Query and agent content resolution
-
-`ContentResolver` prepares typed inputs before rendering. It fetches query-backed
-tables first, then generates text whose `uses` list references those tables.
-Applications provide the following interfaces.
-
-| Interface | Application responsibility |
-| --- | --- |
-| `DataSource.fetch(QuerySource) -> DataFrame` | Validate and execute a query through a named connection with read-only access, bound parameters, server-side limits, and timeouts |
-| `AgentTextGenerator.generate(GenerationRequest) -> str` | Call a generator using its prompt, permitted summaries, character limit, and retry feedback |
-
-A context-only table and dependent summary can be declared as follows.
-
-~~~json
-{
-  "id": "resolved_review",
-  "inputs": {
-    "raw_sales": {
-      "type": "table",
-      "visible": false,
-      "summary_head_rows": 5
-    },
-    "summary": {
-      "type": "text",
-      "source": "agent",
-      "prompt": "Summarize the supplied sales results",
-      "uses": ["raw_sales"],
-      "max_chars": 1200
-    }
-  }
-}
-~~~
-
-This template needs a `<<summary>>` placeholder. Hidden inputs must be referenced
-by an agent's `uses`, and the renderer skips their conversion and asset staging.
-
-Query bindings use `QuerySource(connection=..., query=..., params=..., row_limit=...)`.
-Adapters must apply the result bound before fetching, for example through a
-validated SQL `LIMIT row_limit + 1`. The resolver also rejects fetched results
-that exceed the limit.
-
-Generators receive counts and bounded column profiles with non-null counts and
-finite numeric min/max/mean. Setting `summary_head_rows` opts into sending raw
-cell data. Requested leading rows are limited to 20, text cells to 200 characters,
-and columns to `summary_max_columns`, default 20.
-
-All row samples in a generation request share `summary_max_row_chars`, default
-8,192 compact JSON characters. Complete rows are retained in `uses` order,
-with omission counts for budget truncation. Use deterministic pre-aggregated
-results when generated claims depend on categories or trends.
-
-`GenerationRequest` includes `max_chars`. Overlong output gets one retry with
-feedback. A second invalid response returns `resolution_failed` and reports
-that the retry was used. Supplied text can override generation.
-
-Check `ResolutionResult.diagnostics` before passing its `inputs` to
-`RenderRequest`. Live database/model adapters are extension work.
-The [resolver guide](docs/content-resolution.md) provides contracts and wiring.
-
-## Compilation, artifacts, and diagnostics
-
-Each build validates input/template compatibility, copies resources into a
-private workspace, renders content, expands Jinja, checks package declarations,
-and compiles the complete document. The texres adapter has a 120-second default
-timeout and stops the process group on supported systems when compilation times
-out or is cancelled.
-
-XeLaTeX is the default engine. Metadata also accepts pdfLaTeX and LuaLaTeX.
-pdfLaTeX requires compatible text and template fonts. XeLaTeX/LuaLaTeX with
-appropriate fonts support broader character coverage.
-
-Templates must load the packages their generated content needs.
-
-| Feature | Required declarations |
-| --- | --- |
-| Images and graphs | `graphicx` |
-| Native table rules | `booktabs` |
-| Merged table row labels | `multirow` when emitted |
-| Paginated tables | `longtable` |
-| Typography colors and boxes | `xcolor` |
-| Colored table cells | `xcolor` and `colortbl`, commonly supplied by `\usepackage[table]{xcolor}` |
-
-The scanner follows literal declarations and local TeX/class/style dependencies
-in source order, including forwarded options before the first `xcolor` load.
-For packages loaded through external classes or macro logic, template authors
-can assert `provided_packages: ["graphicx", "booktabs"]` in metadata.
-See the [package contract](docs/review-hardening.md) for scanner limits.
-
-Attributed table width overflow up to `compiler.table_overflow_tolerance_pt`,
-default 2pt, produces a warning. Larger reported width prevents PDF publication.
-Zero makes every positive reported overflow an error. The tolerance classifies
-compiler diagnostics.
-
-Successful output has the following layout.
-
-~~~text
-output/pdf/
-  quarterly-review.pdf
-  quarterly-review.artifacts/
-    main.tex
-    compile.log
-    report-assets/
-      <content-hash>.pdf
-~~~
-
-Nested template paths are preserved. `RenderResult` contains the PDF path,
-structured diagnostics, and retained artifact paths. Diagnostics carry
-`stage`, `code`, `message`, `severity`, and an input name when applicable.
-
-| Typical diagnostic | What to check |
-| --- | --- |
-| `missing_input`, `input_type`, `text_length` | Runtime values and metadata declarations |
-| `unused_input`, `undeclared_placeholder`, `hidden_placeholder` | Template names and visibility |
-| `unsupported_backend` | Registered renderer and backend |
-| `missing_package` | Template preamble or `provided_packages` |
-| `table_overflow` | Table width, template placement, tolerance |
-| `compiler_not_found`, `compiler_timeout`, `compiler_failed` | texres installation and retained log |
-| `internal_error` | Diagnostic stage and application traceback logs |
-
-Compiler failures retain available source, assets, and logs while preserving a
-previous destination PDF. Early validation failures may return diagnostics before
-artifacts exist. Output and artifact paths are checked against template resources
-to prevent accidental replacement. Files use atomic replacement, and the
-workspace is cleaned after the call.
-
-Templates are trusted TeX sources. Escaping, sandboxed Jinja, and disabled shell
-escape protect specific rendering boundaries. Untrusted template uploads require
-a separately enforced process/filesystem isolation boundary.
-
-Concurrent jobs should use distinct output paths. Artifacts are published as
-individual files, and calls targeting the same destination require application
-coordination. Concurrent matplotlib rendering and service throughput have not
-been established by the sequential benchmark.
-
-## Package architecture
-
-The code uses a `src/` layout, typed value objects, protocol interfaces, and
-constructor injection. `create_renderer()` composes the default collaborators.
-
-| Package | Main responsibility |
-| --- | --- |
-| `application` | `RenderRequest`, `ReportRenderer`, preflight validation, composition |
-| `models` | Typed inputs, template/context values, diagnostics, results |
-| `metadata` | Schemas, style/dimension validation, JSON/YAML parsing |
-| `templates` | Bundle discovery, dependency inspection, Jinja expansion |
-| `rendering` | Text, image, graph, table strategies selected by type/backend |
-| `presentation` | Shared scoped styling for every placeholder |
-| `validation` | Shared text policy and package scanning |
-| `compilation` | Compiler protocol, texres lifecycle, overflow diagnostics |
-| `resolution` | Query bindings, bounded summaries, generated-text requests |
-| `storage` | Temporary workspaces and artifact publication |
-| `interfaces.cli` | Typer commands and file-backed content loading |
-
-Replaceable boundaries include `ContentRenderer`, `TemplateEngine`,
-`TemplateRepository`, `LatexCompiler`, `PlaceholderStyler`,
-`WorkspaceManager`, and `ArtifactStore`. Renderer registration uses
-`(type, backend)` keys. Styler is the bundled table implementation. The schema
-recognizes `great_tables` for a future adapter, and selecting it currently
-returns `unsupported_backend`.
-
-The [architecture reference](docs/project-overview.md) provides a package tree,
-class responsibilities, dependency direction, and build lifecycle.
+Use distinct output stems for concurrent jobs, including across formats. Templates
+are trusted source files; validation and private profiles are not a sandbox for
+untrusted uploads. Details are in the [PDF checks guide](docs/review-hardening.md)
+and [Office contracts](docs/office-reports.md).
 
 ## Examples and documentation
 
-| Example | Demonstrates | Command |
-| --- | --- | --- |
-| [Plain text](examples/plain_text/render.py) | Defaults, optional values, escaping | `uv run python examples/plain_text/render.py` |
-| [Comprehensive](examples/comprehensive/README.md) | Seven pages, charts, six tables, heatmaps, appendix | `uv run python examples/comprehensive/render.py` |
-| [Rotated tables](examples/rotated_tables/README.md) | Landscape page and sideways table | `uv run python examples/rotated_tables/render.py` |
-| [Placeholder styles](examples/placeholder_styles/README.md) | Typography, headings, alignment, containers | `uv run python examples/placeholder_styles/render.py` |
+| Start here | Details |
+| --- | --- |
+| [LibreOffice template tutorial](docs/libreoffice-template-guide.md) | Import designs, add slots, render through Python/CLI, troubleshoot |
+| [Office XML authoring reference](docs/office-template-authoring.md) | Page styles, slide frames, workbook tabs and table styling |
+| [Office backend contracts](docs/office-reports.md) | Supported limits, animation, configuration and compatibility status |
+| [Comprehensive Office examples](examples/office_comprehensive/README.md) | Shared data across DOCX, PPTX and XLSX |
+| [Comprehensive PDF walkthrough](docs/comprehensive-example-walkthrough.md) | Full LaTeX template, charts, styled tables and paginated appendix |
+| [Placeholder style guide](docs/placeholder-styles.md) | LaTeX typography, boxes, headings and page transitions |
+| [Content resolution](docs/content-resolution.md) | Query adapters, agent summaries, generators and CLI configuration |
+| [Project architecture](docs/project-overview.md) | Packages, collaborators and build lifecycle |
+| [PDF validation](docs/review-hardening.md) | Package declarations, input manifests and overflow behavior |
+| [Benchmarks](benchmarks/README.md) | Sequential report generation measurements |
 
-Generated reports and assets go under `output/`. The walkthrough includes
-committed page previews for the comprehensive example.
+Small runnable Office examples live in `examples/office_docx`, `office_xlsx` and
+`office_pptx`; each contains a complete template, metadata and `render.py`.
+PDF examples also include `examples/plain_text`, `placeholder_styles` and
+`rotated_tables`.
 
-- [Comprehensive walkthrough](docs/comprehensive-example-walkthrough.md)
-- [Placeholder styling](docs/placeholder-styles.md)
-- [Content resolver](docs/content-resolution.md)
-- [Package checks, input manifests, and overflow behavior](docs/review-hardening.md)
-- [Proposed table layout configuration](docs/table-layout-design.md)
+## Development
 
-## Development and benchmarks
-
-~~~sh
+```sh
 uv run --extra parquet ruff check .
 uv run --extra parquet ruff format --check .
 uv run --extra parquet pytest -q
 uv build
-~~~
+```
 
-Unit tests cover schemas, escaping, registry selection, styles, resolver
-ordering/retries/budgets, path restrictions, publication, and compiler failures.
-Integration tests compile PDFs, inspect text and pagination, exercise file/Figure
-inputs, and verify package/overflow behavior. Compiler tests skip when texres or
-the required Poppler tools are unavailable. The Parquet loader test skips when
-its optional dependency is absent.
+[CI](.github/workflows/ci.yml) installs LibreOffice and fonts on Ubuntu 24.04,
+runs Ruff and pytest, and records exact engine/package versions with JUnit
+results. Office integration tests perform actual conversions. PDF integration
+tests skip when texres or required Poppler tools are absent; run locally with
+those dependencies for full PDF coverage.
 
-Measure current sequential build times with the benchmark runner.
-
-~~~sh
-uv run python benchmarks/report_generation.py --runs 10
-~~~
-
-Results go to `output/benchmarks/report-generation.json`. They include input
-preparation and rendering as separate timings, one first request, and subsequent
-measured requests. The [benchmark guide](benchmarks/README.md) documents
-measurement boundaries and a historical baseline.
-
-## Repository hygiene and license
-
-Version-controlled files include source/tests, TeX templates, JSON/YAML example
-metadata, documentation and its page previews, `uv.lock`, and project definitions.
-
-`.gitignore` excludes environments, caches, local secrets, local editor/agent
-settings, generated output, `*.artifacts/` directories, package builds, and TeX
-intermediates. Keep actual template resources and documentation images under
-version control. Store private runtime data outside bundles and write generated
-reports under `output/`.
-
-Report Agent is available under the [MIT license](LICENSE).
+Generated reports, caches, environments and `.artifacts` directories are ignored.
+Keep reusable templates and their static resources in version control; runtime
+private data belongs outside template bundles. Report Agent uses the [MIT license](LICENSE).

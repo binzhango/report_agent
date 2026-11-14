@@ -9,6 +9,7 @@ import typer
 from report_agent.application.bootstrap import create_renderer
 from report_agent.application.request import RenderRequest
 from report_agent.interfaces.cli.inputs import InputFileLoader
+from report_agent.interfaces.cli.resolution import load_queries, load_resolver
 from report_agent.models.inputs import TextInput
 
 app = typer.Typer(
@@ -74,9 +75,24 @@ def render_report(
             "--input-root", help="Restrict all input asset paths to this directory."
         ),
     ] = None,
+    resolver_factory: Annotated[
+        str | None,
+        typer.Option(
+            "--resolver",
+            help="Trusted application module:factory returning ContentResolver.",
+        ),
+    ] = None,
+    queries_file: Annotated[
+        Path | None,
+        typer.Option(
+            "--queries", help="JSON/YAML query bindings for the application resolver."
+        ),
+    ] = None,
 ) -> None:
     """Render using text, file-backed assets, and JSON/YAML input manifests."""
     try:
+        queries = load_queries(queries_file) if queries_file is not None else {}
+        resolver = load_resolver(resolver_factory) if resolver_factory else None
         loader = InputFileLoader(base_directory=input_root)
         inputs = loader.load(inputs_file) if inputs_file is not None else {}
         explicit = set()
@@ -101,7 +117,9 @@ def render_report(
                 )
     except (OSError, ValueError) as exc:
         raise typer.BadParameter(str(exc)) from exc
-    result = create_renderer().render(RenderRequest(template, metadata, inputs, output))
+    result = create_renderer(resolver=resolver).render(
+        RenderRequest(template, metadata, inputs, output, queries=queries)
+    )
     for diagnostic in result.diagnostics:
         label = f" ({diagnostic.input_name})" if diagnostic.input_name else ""
         typer.echo(

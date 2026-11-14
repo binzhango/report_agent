@@ -1,0 +1,5 @@
+queries:
+  sales_data:
+    connection: demo
+    query: demo sales
+    row_limit: 100

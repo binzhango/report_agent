@@ -1,7 +1,7 @@
 [project]
 name = "report-agent"
 version = "0.1.0"
-description = "Render LaTeX templates into PDF reports with metadata and runtime content."
+description = "Generate PDF, DOCX, XLSX and PPTX reports from styled templates and runtime content."
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [

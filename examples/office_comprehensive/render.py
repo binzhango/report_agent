@@ -4,7 +4,6 @@
 import argparse
 import os
 from pathlib import Path
-from tempfile import TemporaryDirectory
 
 BUNDLE = Path(__file__).resolve().parent
 ROOT = BUNDLE.parents[1]
@@ -37,40 +36,34 @@ def main():
             inputs = {
                 name: value for name, value in source.items() if name in metadata.inputs
             }
-            with TemporaryDirectory(prefix="comprehensive-animation-") as directory:
-                if fmt == "pptx":
-                    resolved = ContentResolver(
-                        sources={"example": ExampleDataSource()},
-                        animation_generators=AnimationGenerators(
-                            {"revenue_over_time": revenue_animation}
-                        ),
-                    ).resolve(
-                        metadata,
-                        inputs=inputs,
-                        queries={
-                            "animation_data": QuerySource(
-                                connection="example",
-                                query="monthly_revenue",
-                                row_limit=100,
-                            )
-                        },
-                        media_workspace=Path(directory),
-                    )
-                    if resolved.diagnostics:
-                        raise RuntimeError(resolved.diagnostics)
-                    inputs = resolved.inputs
-                label = {
-                    "docx": "document",
-                    "pptx": "presentation",
-                    "xlsx": "workbook",
-                }[fmt]
-                output = args.output_root / f"comprehensive-{label}.{fmt}"
-                result = create_renderer().render(
-                    RenderRequest(BUNDLE / fmt, metadata, inputs, output)
+            resolver = None
+            queries = {}
+            if fmt == "pptx":
+                resolver = ContentResolver(
+                    sources={"example": ExampleDataSource()},
+                    animation_generators=AnimationGenerators(
+                        {"revenue_over_time": revenue_animation}
+                    ),
                 )
-                if result.output_path is None:
-                    raise RuntimeError(result.diagnostics)
-                print(result.output_path)
+                queries = {
+                    "animation_data": QuerySource(
+                        connection="example",
+                        query="monthly_revenue",
+                        row_limit=100,
+                    )
+                }
+            label = {
+                "docx": "document",
+                "pptx": "presentation",
+                "xlsx": "workbook",
+            }[fmt]
+            output = args.output_root / f"comprehensive-{label}.{fmt}"
+            result = create_renderer(resolver=resolver).render(
+                RenderRequest(BUNDLE / fmt, metadata, inputs, output, queries=queries)
+            )
+            if result.output_path is None:
+                raise RuntimeError(result.diagnostics)
+            print(result.output_path)
 
 
 if __name__ == "__main__":

@@ -2,6 +2,7 @@
 
 import hashlib
 import json
+import posixpath
 from io import BytesIO
 from pathlib import Path
 from zipfile import BadZipFile, ZipFile
@@ -18,7 +19,7 @@ from report_agent.models.inputs import (
     TextInput,
 )
 from report_agent.models.results import Diagnostic, RenderResult
-from report_agent.storage.artifacts import LocalArtifactStore
+from report_agent.storage.artifacts import LocalArtifactStore, publish_snapshot
 from report_agent.storage.workspace import TemporaryWorkspaceManager
 from report_agent.templates.odf import OdfTemplate, parse
 from report_agent.validation.text import text_issues
@@ -37,13 +38,12 @@ def verify_package(path, fmt, animations=()):
             names = set(archive.namelist())
             for part in (main, "[Content_Types].xml", "_rels/.rels"):
                 parse(archive.read(part))
-            referenced_media = set()
+            relationships = {}
             for name in names:
                 if name.endswith(".rels"):
-                    import posixpath
-
                     rels = parse(archive.read(name))
                     base = posixpath.dirname(posixpath.dirname(name))
+                    source_part = posixpath.join(base, posixpath.basename(name)[:-5])
                     for rel in rels:
                         if rel.get("TargetMode") == "External":
                             raise ValueError(
@@ -55,13 +55,19 @@ def verify_package(path, fmt, animations=()):
                             if not target.startswith("/")
                             else target[1:]
                         )
-                        if name.startswith("ppt/slides/_rels/") and resolved.startswith(
-                            "ppt/media/"
-                        ):
-                            referenced_media.add(resolved)
+                        relationships.setdefault(source_part, set()).add(resolved)
                         if resolved not in names:
                             raise ValueError(f"Missing relationship target: {resolved}")
-            media = [archive.read(n) for n in referenced_media]
+            # Follow layout/master relationships as well as slide-local media.
+            # Unreferenced media files cannot satisfy animation preservation.
+            reachable = set()
+            pending = [main]
+            while pending:
+                part = pending.pop()
+                if part not in reachable:
+                    reachable.add(part)
+                    pending.extend(relationships.get(part, ()))
+            media = [archive.read(n) for n in reachable if n.startswith("ppt/media/")]
             for source in animations:
                 digest = hashlib.sha256(source).digest()
                 matches = [m for m in media if hashlib.sha256(m).digest() == digest]
@@ -86,6 +92,7 @@ class LibreOfficeBackend:
     def render(self, request, metadata):
         stage = "template_loading"
         retained = []
+        retention_issues = []
         try:
             selected = request.template.expanduser().absolute()
             root = selected if selected.is_dir() else selected.parent
@@ -180,12 +187,12 @@ class LibreOfficeBackend:
                         raise ValueError(
                             "Artifact destination would overwrite template resources."
                         )
-                    retained = [
-                        self.artifacts.publish(
-                            p, destination / p.relative_to(workspace)
-                        )
-                        for p in assets
-                    ]
+                    retained = publish_snapshot(
+                        self.artifacts,
+                        [(p, p.relative_to(workspace)) for p in assets],
+                        destination,
+                        protected,
+                    )
                     final = self.artifacts.publish(candidate, output)
                     return RenderResult(
                         diagnostics=(
@@ -202,17 +209,24 @@ class LibreOfficeBackend:
                     )
                 except Exception:
                     # Retain source/logs on failure without publishing the candidate.
-                    for p in [
+                    failure_assets = [
                         *workspace.glob("expanded.*"),
                         *(workspace / "export").glob("*.log"),
-                    ]:
-                        if (
-                            destination / p.relative_to(workspace)
-                        ).resolve() in protected:
-                            continue
-                        retained.append(
-                            self.artifacts.publish(
-                                p, destination / p.relative_to(workspace)
+                    ]
+                    try:
+                        retained = publish_snapshot(
+                            self.artifacts,
+                            [(p, p.relative_to(workspace)) for p in failure_assets],
+                            destination,
+                            protected,
+                        )
+                    except Exception as retention_error:
+                        retention_issues.append(
+                            Diagnostic(
+                                "publication",
+                                "artifact_retention_failed",
+                                str(retention_error),
+                                severity="warning",
                             )
                         )
                     raise
@@ -220,14 +234,16 @@ class LibreOfficeBackend:
             return RenderResult(
                 diagnostics=(
                     Diagnostic(stage, getattr(exc, "code", "invalid_input"), str(exc)),
-                ),
+                )
+                + tuple(retention_issues),
                 artifacts=tuple(retained),
             )
         except Exception as exc:
             return RenderResult(
                 diagnostics=(
                     Diagnostic(stage, "internal_error", f"{type(exc).__name__}: {exc}"),
-                ),
+                )
+                + tuple(retention_issues),
                 artifacts=tuple(retained),
             )
 
@@ -268,6 +284,9 @@ class LibreOfficeBackend:
                 issue("hidden_placeholder", "Hidden input in template.", n)
             if n not in inputs and d.required and d.default is None:
                 issue("missing_input", "Missing required input.", n)
+            if n not in inputs and d.default is not None:
+                for code, message in text_issues(TextInput(d.default), d):
+                    issue(code, message, n)
             if n in inputs:
                 if not isinstance(inputs[n], types[d.type]):
                     issue("input_type", f"Expected {d.type} input.", n)
