@@ -50,7 +50,16 @@ class LibreOfficeConverter:
             }[source.suffix],
             "--norestore",
             "--convert-to",
-            f"{fmt}:{FILTERS[fmt]}",
+            f"{fmt}:"
+            + (
+                {
+                    ".fodt": "writer_pdf_Export",
+                    ".fods": "calc_pdf_Export",
+                    ".fodp": "impress_pdf_Export",
+                }[source.suffix]
+                if fmt == "pdf"
+                else FILTERS[fmt]
+            ),
             "--outdir",
             str(directory.resolve()),
             str(source.resolve()),

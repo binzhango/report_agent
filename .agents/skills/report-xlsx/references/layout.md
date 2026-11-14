@@ -1,0 +1,1 @@
+The Report sheet holds title and explanatory text; every table block creates its own data sheet. Only text/table blocks are supported in the initial authoring compiler. Keep wide datasets manageable and inspect the native workbook as well as its PDF preview. Do not discard rows to make printing easier.

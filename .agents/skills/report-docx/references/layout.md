@@ -1,0 +1,1 @@
+Use document flow with heading and paragraph blocks. Tables can paginate in Writer. Charts are placed as inline images. Choose portrait or landscape at document level. Mixed section orientations and exact reproduction of imported layouts are outside this first compiler.

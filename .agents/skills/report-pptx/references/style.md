@@ -1,0 +1,1 @@
+Use one main message per slide, concise headings, and readable labels. The compiler uses 32 pt cover titles, 24 pt section headings and 18 pt body text. Pick a restrained accent. Avoid large paragraphs or dense raw datasets.

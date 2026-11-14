@@ -1,0 +1,1 @@
+Choose sans or serif typography and one restrained accent color. Use concise headings and consistent hierarchy. The current compiler uses Latin Modern with pdflatex; complex-script typography requires extending the compiler, not claiming unsupported font fidelity. Table values remain native text; charts use supplied numeric data.

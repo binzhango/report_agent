@@ -41,6 +41,27 @@ retain the extra with `uv run --extra parquet ...`.
 
 ## Quick start
 
+### Conversational reports (optional)
+
+Use Deep Agents and Gradio to build a reusable report through conversation, upload
+a PDF/DOCX/PPTX/XLSX sample, or choose a rendered example. Accept the template once;
+later runs reuse its content/layout and ask only for runtime parameter confirmation.
+
+```sh
+uv sync --locked --extra agent
+export OPENAI_API_KEY='your-key'
+export REPORT_AGENT_MODEL='your-tool-capable-model'
+# For another OpenAI-compatible provider, also set OPENAI_BASE_URL.
+uv run --extra agent report serve
+```
+
+See [agent workflows and current limits](docs/agent-workflows.md),
+[report definitions](docs/report-definitions.md), and
+[data connectors](docs/data-connectors.md). Model credentials are not needed for
+the existing renderer or deterministic runs of accepted reports.
+
+### Render an existing template
+
 Generate a PDF from the included template:
 
 ```sh

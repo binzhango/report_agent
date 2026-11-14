@@ -1,0 +1,1 @@
+Use portrait for narrative and landscape for wide data. Apply page_break_before only for intentional section starts. Tables use longtable; preview wide tables and request fewer columns or landscape when needed. Keep fixed and dynamic text in slots so the engine escapes it.

@@ -1,0 +1,9 @@
+project,milestone,owner,due_date,status
+Atlas,Design approval,Maya Chen,2026-10-06,Completed
+Atlas,API integration,Omar Patel,2026-10-16,In progress
+Atlas,Security review,Elena Ruiz,2026-10-27,At risk
+Beacon,Data migration,Noah Kim,2026-10-20,In progress
+Atlas,Pilot launch,Maya Chen,2026-11-05,In progress
+Atlas,Training complete,Omar Patel,2026-11-17,Planned
+Atlas,Release sign-off,Elena Ruiz,2026-11-26,Planned
+Beacon,Service handover,Noah Kim,2026-11-12,Planned

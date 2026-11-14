@@ -30,6 +30,84 @@ def show_version() -> None:
     typer.echo(version("report-agent"))
 
 
+@app.command("serve")
+def serve(
+    library: Path = Path("report_library"),
+    output: Path = Path("output/runs"),
+    connections: Path | None = None,
+    host: str = "127.0.0.1",
+    port: int = 7860,
+) -> None:
+    """Launch conversational report onboarding and parameterized runs."""
+    try:
+        from report_agent.agent.config import AgentConfig
+        from report_agent.application.conversation import ConversationService
+        from report_agent.application.onboarding import OnboardingService
+        from report_agent.application.report_runs import ReportRuns
+        from report_agent.connectors.registry import load_sources
+        from report_agent.interfaces.gradio.app import create_app
+        from report_agent.interfaces.gradio.theme import launch_options
+        from report_agent.storage.report_definitions import ReportStore
+
+        config = AgentConfig.from_environment()
+        store = ReportStore(library)
+        sources = load_sources(connections)
+        runs = ReportRuns(store, sources, output)
+        service = ConversationService(config, OnboardingService(store, runs), sources)
+        create_app(service).launch(
+            server_name=host,
+            server_port=port,
+            share=False,
+            max_file_size="20mb",
+            **launch_options(),
+        )
+    except ImportError as exc:
+        raise typer.BadParameter(
+            "Install optional features with uv sync --extra agent."
+        ) from exc
+    except (ValueError, OSError, KeyError) as exc:
+        raise typer.BadParameter(str(exc)) from exc
+
+
+@app.command("run")
+def run_saved_report(
+    reference: str,
+    parameters: Annotated[
+        Path, typer.Option("--parameters", help="JSON parameter values.")
+    ],
+    library: Path = Path("report_library"),
+    output: Path = Path("output/runs"),
+    connections: Path | None = None,
+) -> None:
+    """Run a saved accepted report; supplying parameters authorizes this CLI run."""
+    import json
+
+    from report_agent.application.report_runs import ReportRuns
+    from report_agent.connectors.files import FileSource
+    from report_agent.connectors.registry import load_sources
+    from report_agent.storage.report_definitions import ReportStore
+
+    try:
+        if not reference.startswith("accepted/"):
+            raise ValueError("Use an accepted report reference.")
+        sources = load_sources(connections)
+        for path in (library / "sources").glob("*/source.json"):
+            data = json.loads(path.read_text())
+            sources[data["name"]] = FileSource(
+                path.parent / data["file"], filters=data.get("filters")
+            )
+        result = ReportRuns(ReportStore(library), sources, output).run(
+            reference, json.loads(parameters.read_text())
+        )
+    except (ValueError, OSError, KeyError) as exc:
+        raise typer.BadParameter(str(exc)) from exc
+    for diagnostic in result.diagnostics:
+        typer.echo(f"{diagnostic.severity}: {diagnostic.message}", err=True)
+    if result.output_path is None:
+        raise typer.Exit(1)
+    typer.echo(str(result.output_path))
+
+
 @app.command("render")
 def render_report(
     template: Annotated[

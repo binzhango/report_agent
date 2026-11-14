@@ -29,13 +29,15 @@ coverage.xml
 /.vscode/
 /.idea/
 /.codex/
-/.agents/
+/.agents/*
+!/.agents/skills/
 *.swp
 *.swo
 *~
 
 # Generated reports, assets, benchmarks, and TeX intermediates
 output/
+report_library/
 tmp/
 *.artifacts/
 .report-compile-*/

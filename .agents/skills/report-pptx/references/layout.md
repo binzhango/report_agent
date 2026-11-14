@@ -1,0 +1,1 @@
+The compiler creates a title slide and one slide per content block. Body text is limited to 700 characters, tables to 12 rows and 6 columns, charts to 50 data rows. Split content into separate blocks before rendering. These bounds do not guarantee visual fit; inspect the preview and revise.
