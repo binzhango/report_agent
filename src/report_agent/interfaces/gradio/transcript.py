@@ -29,8 +29,32 @@ def snapshot(session, status="", *, busy=False):
                     else None
                 ),
                 "preview": str(session.preview_path) if session.preview_path else None,
+                "query_review": deepcopy(session.preview_queries),
             }
         )
+    if session.input_form:
+        form_id = session.input_form["id"]
+        previous = next(
+            (
+                e
+                for e in events
+                if e["kind"] == "input_form" and e["form"]["id"] == form_id
+            ),
+            None,
+        )
+        if previous:
+            events.remove(previous)
+        events.append(
+            previous
+            or {
+                "id": f"{session.id}-inputs-{form_id}",
+                "kind": "input_form",
+                "form": deepcopy(session.input_form),
+            }
+        )
+    for event in events:
+        if event["kind"] == "input_form":
+            event["answers"] = deepcopy(session.form_answers.get(event["form"]["id"]))
     if session.pending:
         previous = next(
             (e for e in reversed(events) if e["kind"] == "parameters"), None
@@ -56,8 +80,19 @@ def snapshot(session, status="", *, busy=False):
         (e["id"] for e in reversed(events) if e["kind"] == "parameters"), None
     )
     for event in result:
+        if event["kind"] == "report":
+            saved = session.accepted_previews.get(event.get("preview"))
+            event["accepted"] = (
+                deepcopy(saved)
+                if saved and saved["draft"] == event.get("reference")
+                else None
+            )
         event["active"] = not busy and (
-            event["kind"] == "parameters"
+            event["kind"] == "input_form"
+            and session.input_form is not None
+            and event["form"]["id"] == session.input_form["id"]
+            and event.get("answers") is None
+            or event["kind"] == "parameters"
             and not event.get("resolved", False)
             and event["proposal"] == session.pending
             and event["id"] == latest_parameters

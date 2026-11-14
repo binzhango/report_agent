@@ -8,6 +8,7 @@ from uuid import uuid4
 
 from report_agent.authoring.compiler import compile_template
 from report_agent.definitions.loader import load_definition, save_definition
+from report_agent.errors import ReportError
 
 
 class ReportStore:
@@ -26,17 +27,35 @@ class ReportStore:
         if not re.fullmatch(
             r"drafts/[a-f0-9]{32}|accepted/[a-z][a-z0-9_-]{0,63}/v[1-9][0-9]*", key
         ):
-            raise ValueError("Invalid report reference.")
+            raise ReportError(
+                "Invalid report reference. Choose a reference from report_context.",
+                code="invalid_reference",
+            )
         directory = (self.root / key).resolve()
         if (
             not directory.is_relative_to(self.root)
             or not (directory / "report.yaml").is_file()
         ):
-            raise ValueError("Report definition not found.")
+            raise ReportError(
+                "Report definition not found. Refresh report_context.",
+                code="report_not_found",
+            )
         return directory
 
     def load(self, key):
         return load_definition(self.path(key) / "report.yaml")
+
+    def delete_draft(self, key):
+        """Delete an explicitly owned temporary draft, never an accepted bundle."""
+        if not re.fullmatch(r"drafts/[a-f0-9]{32}", key):
+            raise ReportError(
+                "Only temporary draft references can be deleted.",
+                code="invalid_reference",
+            )
+        with self._lock:
+            if not (self.root / key).exists():
+                return
+            shutil.rmtree(self.path(key))
 
     def accept(self, key, sample_path: Path):
         if not key.startswith("drafts/"):

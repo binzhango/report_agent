@@ -154,13 +154,13 @@ def test_public_tool_errors_do_not_echo_paths_urls_or_database_details(tmp_path)
         def fetch(self, source):
             raise current_error
 
+    session = Onboarding()
     tools = {
         t.name: t
-        for t in build_tools(
-            Onboarding(), service.onboarding, {"source": FailingSource()}
-        )
+        for t in build_tools(session, service.onboarding, {"source": FailingSource()})
     }
     for current_error in errors:
+        session.begin_turn()
         result = tools["preview_data"].invoke(
             {"connection": "source", "query": "data", "params": {}}
         )

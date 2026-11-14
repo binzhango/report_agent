@@ -9,18 +9,47 @@ from langchain_core.tools import tool
 
 from report_agent.agent.catalog import catalog_context
 from report_agent.agent.errors import public_tool_error
+from report_agent.application.input_forms import InputForm, parameter_form
 from report_agent.definitions.models import ReportDefinition
+from report_agent.errors import ReportError
 from report_agent.resolution.models import QuerySource
 
 
 def build_tools(session, onboarding, sources):
     store = onboarding.store
 
-    def attempt(fn):
-        try:
-            return fn()
-        except Exception as exc:
-            return public_tool_error(exc)
+    def attempt(fn, *, repair=False):
+        # ToolNode may execute parallel calls. This lock is separate from the
+        # turn lock held by the conversation worker, so tool threads cannot deadlock.
+        with session.tool_lock:
+            if repair and session.input_form:
+                return public_tool_error(
+                    ReportError(
+                        "Wait for the user to submit the current input form.",
+                        code="input_required",
+                    )
+                )
+            if repair and session.repair_pending:
+                if session.repair_attempts >= 2:
+                    return public_tool_error(
+                        ReportError(
+                            "Two repair attempts were used this turn. Explain the "
+                            "blocker and ask the user for the next input.",
+                            code="repair_limit",
+                        )
+                    )
+                session.repair_attempts += 1
+            try:
+                result = fn()
+            except Exception as exc:
+                if repair:
+                    session.repair_pending = True
+                return public_tool_error(exc)
+            if repair:
+                session.repair_pending = isinstance(result, dict) and (
+                    result.get("success") is False or "error" in result
+                )
+            return result
 
     def preview(reference, parameters, sample_tables):
         result = onboarding.preview(session, reference, parameters, sample_tables)
@@ -52,7 +81,54 @@ def build_tools(session, onboarding, sources):
             "source_labels": session.source_labels,
             "candidates": session.candidates,
             "pending": session.pending,
+            "input_form": session.input_form,
+            "form_answers": session.form_answers,
         }
+
+    @tool
+    def request_report_inputs(
+        title: str,
+        fields: list[dict] | None = None,
+        description: str = "",
+        report_reference: str | None = None,
+        known_parameters: dict | None = None,
+    ) -> dict:
+        """Ask questions using an interactive form inside the chat, then wait.
+
+        Each field has id, label, type (text, multiline, date, month, integer,
+        number, select, boolean), required, default, placeholder, help, choices,
+        and allow_other (select only). Use multiline for open questions; select
+        with allow_other for an Other text answer. Month accepts November 2026.
+        Ask only missing questions; keep the first discovery form to two fields.
+        For an accepted report pass report_reference and known_parameters instead
+        of fields: the application builds typed inputs from its saved schema.
+        Submitting saved report parameters prepares confirmation without a model
+        call. Call this tool on its own; it ends the turn to wait for the user.
+        """
+
+        def request():
+            if report_reference:
+                store.path(report_reference)
+                if not report_reference.startswith("accepted/"):
+                    raise ReportError(
+                        "Use an accepted report for a runtime parameter form."
+                    )
+                form = parameter_form(
+                    store.load(report_reference),
+                    report_reference,
+                    known_parameters or {},
+                    title=title,
+                    description=description,
+                )
+            else:
+                form = InputForm(
+                    title=title, description=description, fields=fields or []
+                )
+            session.input_form = form.model_dump(mode="json")
+            session.pending = None
+            return {"status": "awaiting_input", "form": session.input_form}
+
+        return attempt(request, repair=True)
 
     @tool
     def report_contract() -> dict:
@@ -72,10 +148,15 @@ def build_tools(session, onboarding, sources):
 
         def resume():
             if not reference.startswith("drafts/"):
-                raise ValueError("Use a draft reference, or run an accepted template.")
+                raise ReportError(
+                    "Use a draft reference, or run an accepted template.",
+                    code="draft_required",
+                )
             definition = store.load(reference)
+            onboarding.discard_examples(session, keep=reference)
             session.draft = reference
             session.preview_reference = session.preview_path = None
+            session.preview_queries = {}
             session.pending = None
             session.files.clear()
             session.gallery.clear()
@@ -90,7 +171,9 @@ def build_tools(session, onboarding, sources):
         Use report_contract for the schema. Fixed text lives in layout.blocks[].text.
         Table blocks need query bindings. This never accepts or publishes a template.
         """
-        return attempt(lambda: {"draft": onboarding.stage(session, definition)})
+        return attempt(
+            lambda: {"draft": onboarding.stage(session, definition)}, repair=True
+        )
 
     @tool
     def preview_report(
@@ -101,7 +184,9 @@ def build_tools(session, onboarding, sources):
         With sample_tables omitted, fetch actual data through configured connectors.
         Show previews to the user before suggesting the Accept template button.
         """
-        return attempt(lambda: preview(reference, parameters, sample_tables))
+        return attempt(
+            lambda: preview(reference, parameters, sample_tables), repair=True
+        )
 
     @tool
     def rendered_examples(output_format: str, topic: str) -> list[dict]:
@@ -111,6 +196,7 @@ def build_tools(session, onboarding, sources):
         they are not final content and cannot be accepted until made into a draft.
         """
         results = []
+        onboarding.discard_examples(session)
         session.files.clear()
         session.gallery.clear()
         session.candidates.clear()
@@ -154,6 +240,7 @@ def build_tools(session, onboarding, sources):
                     }
                 )
                 reference = store.draft(definition)
+                session.example_drafts.add(reference)
                 session.candidates[preset["name"]] = reference
                 return {
                     "name": preset["name"],
@@ -161,7 +248,7 @@ def build_tools(session, onboarding, sources):
                     **preview(reference, {}, {"section_1": rows}),
                 }
 
-            results.append(attempt(generate))
+            results.append(attempt(generate, repair=True))
         return results
 
     @tool
@@ -187,7 +274,7 @@ def build_tools(session, onboarding, sources):
 
         def fetch():
             if not 1 <= row_limit <= 100000:
-                raise ValueError("Preview row_limit must be between 1 and 100000.")
+                raise ReportError("Preview row_limit must be between 1 and 100000.")
             source = QuerySource(
                 connection=connection, query=query, params=params, row_limit=row_limit
             )
@@ -197,7 +284,7 @@ def build_tools(session, onboarding, sources):
                 from report_agent.definitions.models import FileFilter
 
                 if not isinstance(adapter, FileSource):
-                    raise ValueError("Column filters require a file source.")
+                    raise ReportError("Column filters require a file source.")
                 adapter = FileSource(
                     adapter.path,
                     filters={
@@ -207,7 +294,7 @@ def build_tools(session, onboarding, sources):
                 )
             frame = adapter.fetch(source)
             if frame.empty or len(frame) > row_limit:
-                raise ValueError("Data must be nonempty and within the row limit.")
+                raise ReportError("Data must be nonempty and within the row limit.")
             return {
                 "rows": len(frame),
                 "columns": {str(k): str(v) for k, v in frame.dtypes.items()},
@@ -216,7 +303,7 @@ def build_tools(session, onboarding, sources):
                 ),
             }
 
-        return attempt(fetch)
+        return attempt(fetch, repair=True)
 
     @tool
     def propose_report_run(reference: str, parameters: dict) -> dict:
@@ -225,10 +312,13 @@ def build_tools(session, onboarding, sources):
         This does not fetch or render. The user presses Confirm parameters and render;
         then application code executes the saved bindings without another model call.
         """
-        return attempt(lambda: onboarding.propose(session, reference, parameters))
+        return attempt(
+            lambda: onboarding.propose(session, reference, parameters), repair=True
+        )
 
     return [
         report_context,
+        request_report_inputs,
         report_contract,
         inspect_report,
         resume_report_draft,

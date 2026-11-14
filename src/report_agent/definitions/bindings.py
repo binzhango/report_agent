@@ -1,6 +1,7 @@
 """Bind validated values without interpolating query source."""
 
 from report_agent.definitions.parameters import resolve_parameters
+from report_agent.errors import ReportError
 from report_agent.resolution.models import QuerySource
 
 
@@ -12,7 +13,10 @@ def bind_queries(definition, supplied):
     for name, binding in definition.queries.items():
         missing = set(binding.parameter_bindings.values()) - params.keys()
         if missing:
-            raise ValueError(f"Query {name} requires parameters: {sorted(missing)}")
+            raise ReportError(
+                f"Query {name} requires parameters: {sorted(missing)}",
+                code="query_parameters_missing",
+            )
         queries[name] = QuerySource(
             connection=binding.connection,
             query=binding.query,

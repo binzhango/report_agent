@@ -88,8 +88,42 @@ is saved in the template and is not requested again on every run.
 
 Ask for revisions until the preview is satisfactory. **Accept template** saves
 the current successfully previewed draft as an immutable accepted version.
+A query-backed preview includes **Review data and queries** with the exact
+saved SQL when applicable, friendly source names, active filters, columns, row
+limits, and preview values. Full bindings remain under **Technical details**.
+Review those details and check **I reviewed the data and queries** to enable
+acceptance. A revised draft requires a fresh preview and review.
+Accepted cards retain a checked review box and show **Template saved** with the
+accepted version; only superseded drafts show **Previous draft preview**.
 A revision requires a new preview. Example reports are explicitly labeled as
 demonstrations; replace their illustrative content during onboarding.
+Synthetic rows cannot replace configured source data through the agent preview
+tool. Drafts still bound to demonstration sources cannot be accepted. Temporary
+example templates are session-owned and deleted on gallery replacement, draft
+selection/resumption (unchosen examples), staging an editable draft, or session
+removal. Rendered run artifacts remain available as historical downloads.
+
+## Answer in the chat
+
+When information is missing, the agent opens an inline input form rather than a
+numbered list of questions. Forms support month input (`November 2026` or
+`2026-11`), date pickers, choices, numbers, Yes/No, and short or multiline answers.
+**Other…** opens a separate text box for custom choices. Required fields are marked;
+invalid submissions show an inline error without discarding typed answers.
+Standard introductions are used by default; custom wording is requested only when
+it is relevant to the user's request.
+
+A valid form pauses the graph before another model call. Submitting onboarding
+answers validates and sends structured values back to the same agent thread.
+Submitted forms stay visible and read-only; replacement forms and a new chat
+message disable older submission actions. Sample uploads also show a form for
+output format and requested changes.
+
+For accepted reports, forms are derived from the stored parameter schema, with
+known values/defaults prefilled. **Review parameters** validates types, choices,
+and date ordering and creates a confirmation card without another model call.
+Use **Edit inputs** to adjust a proposal, then **Confirm parameters and render**.
+Neither form submission nor editing changes the saved template or fetches data.
 
 ## Repeat quickly
 
@@ -163,6 +197,18 @@ for direct agent construction), explicitly excluding `task` and filesystem write
 Tool failures return fixed public messages and structured validation fields;
 exception strings and renderer diagnostic messages stay out of model responses.
 Full renderer diagnostics remain in local run artifacts for operator inspection.
+Application-authored `ReportError` messages and codes are passed through so the
+agent can distinguish missing acceptance, invalid references, reversed dates,
+missing parameters, and other repairable input problems. Unexpected `ValueError`
+and external exception messages remain generic. Only deliberately safe guidance
+belongs in `ReportError`; never wrap raw provider, file, or database exceptions in it.
+
+Each user message resets a code-side repair budget. A failed mutation/query/render
+allows at most two subsequent repair attempts in that turn, including parallel
+tool calls; further attempts return `repair_limit` without executing the operation.
+Inspection tools remain available. The default graph recursion limit is 40.
+Question count and same-turn example selection remain model behaviors evaluated
+by the live smoke suite, rather than guarantees enforced by prose filtering.
 
 ## Verification
 

@@ -5,6 +5,10 @@ from pathlib import Path
 from queue import Queue
 from threading import Thread
 
+from report_agent.application.input_forms import InputForm, parameter_form
+from report_agent.errors import ReportError
+from report_agent.interfaces.gradio.input_forms import render_input_form
+from report_agent.interfaces.gradio.report_review import data_review_html
 from report_agent.interfaces.gradio.transcript import snapshot
 
 logger = logging.getLogger(__name__)
@@ -71,13 +75,18 @@ def create_app(service):
             )
         return key, events, status, gr.update(interactive=not busy)
 
-    def chat(message, key):
+    def run_chat(message, key, *, display_message=None):
         key, _ = get_session(key)
         if not message.strip():
             yield (*view(key, "Write a message to get started."), message)
             return
         yield (
-            *view(key, "Working on your report…", busy=True, user_message=message),
+            *view(
+                key,
+                "Working on your report…",
+                busy=True,
+                user_message=display_message or message,
+            ),
             "",
         )
         updates = Queue()
@@ -87,6 +96,7 @@ def create_app(service):
                 service.send(
                     key,
                     message,
+                    display_message=display_message,
                     progress=lambda label: updates.put(
                         (*view(key, label, busy=True), gr.skip())
                     ),
@@ -102,6 +112,38 @@ def create_app(service):
         while (update := updates.get()) is not None:
             yield update
 
+    def chat(message, key):
+        yield from run_chat(message, key)
+
+    def submit_inputs(key, form_id, answers):
+        try:
+            result = service.submit_inputs(key, form_id, answers)
+        except ReportError as exc:
+            yield *[gr.skip() for _ in range(4)], str(exc)
+            return
+        except Exception as exc:
+            logger.exception("Input form submission failed")
+            yield *[gr.skip() for _ in range(4)], request_error(exc)
+            return
+        if result["report_run"]:
+            session = service.get_session(key)
+            session.history.extend(
+                [
+                    {"role": "user", "content": result["summary"]},
+                    {
+                        "role": "assistant",
+                        "content": "Your inputs are ready. Confirm the parameters "
+                        "below to render your report.",
+                    },
+                ]
+            )
+            yield *view(key), ""
+            return
+        for update in run_chat(
+            result["message"], key, display_message=result["summary"]
+        ):
+            yield *update[:4], ""
+
     def sample_upload(path, key):
         key, _ = get_session(key)
         if not path:
@@ -112,6 +154,30 @@ def create_app(service):
             sample = service.upload_sample(key, path)
             session = service.get_session(key)
             session.pending = None
+            session.input_form = InputForm(
+                title="Use your reference document",
+                description="Choose the output and tell us what to change. "
+                "Standard introductory text will be used unless you request "
+                "custom wording.",
+                fields=[
+                    {
+                        "id": "output_format",
+                        "label": "Output format",
+                        "type": "select",
+                        "choices": ["DOCX", "PDF", "PPTX", "XLSX"],
+                        "default": sample["format"].upper()
+                        if sample["format"] in {"docx", "pdf", "pptx", "xlsx"}
+                        else None,
+                    },
+                    {
+                        "id": "sample_changes",
+                        "label": "What should change?",
+                        "type": "multiline",
+                        "default": "Keep the current structure.",
+                        "placeholder": "Sections to keep, remove, or add…",
+                    },
+                ],
+            ).model_dump(mode="json")
             session.history.extend(
                 [
                     {"role": "user", "content": f"Added sample: {Path(path).name}"},
@@ -119,9 +185,8 @@ def create_app(service):
                         "role": "assistant",
                         "content": (
                             f"Your {sample['format'].upper()} sample is ready. "
-                            "What should change in the new report? Tell me "
-                            "which sections to keep, the output format, and "
-                            "where its tables or charts should get their data."
+                            "Use the form below to choose the output and "
+                            "describe any changes."
                         ),
                     },
                 ]
@@ -152,8 +217,8 @@ def create_app(service):
                         "role": "assistant",
                         "content": (
                             f"Data is ready. Columns: {columns}. "
-                            "Tell me the selection rules or preview inputs, "
-                            "or ask me to build the draft if those are already agreed."
+                            "Continue with the current form, or ask me to "
+                            "build the draft when the content choices are agreed."
                         ),
                     },
                 ]
@@ -163,15 +228,15 @@ def create_app(service):
             logger.exception("Data upload failed")
             yield view(key, request_error(exc))
 
-    def accept(key, expected=None):
+    def accept(key, expected=None, queries_reviewed=False):
         key, session = get_session(key)
         try:
             with session.lock:
                 if expected and expected != (session.draft, str(session.preview_path)):
-                    raise ValueError(
+                    raise ReportError(
                         "This preview has changed. Review the latest draft."
                     )
-                service.onboarding.accept(session)
+                service.onboarding.accept(session, queries_reviewed=queries_reviewed)
                 session.history.append(
                     {
                         "role": "assistant",
@@ -183,8 +248,11 @@ def create_app(service):
                     }
                 )
             return view(key, "Template saved for future runs.")
-        except ValueError as exc:
+        except ReportError as exc:
             return view(key, str(exc))
+        except Exception as exc:
+            logger.exception("Template acceptance failed")
+            return view(key, request_error(exc))
 
     def confirm(key, expected=None):
         key, session = get_session(key)
@@ -207,6 +275,25 @@ def create_app(service):
         except Exception as exc:
             logger.exception("Report render failed")
             yield view(key, request_error(exc))
+
+    def edit_parameters(key, expected):
+        key, session = get_session(key)
+        try:
+            with session.lock:
+                if session.pending != expected:
+                    raise ReportError("These inputs changed. Use the latest proposal.")
+                reference = expected["reference"]
+                session.input_form = parameter_form(
+                    service.onboarding.store.load(reference),
+                    reference,
+                    expected["parameters"],
+                    title="Update report inputs",
+                    description="Edit the values, then review them before rendering.",
+                ).model_dump(mode="json")
+                session.pending = None
+            return view(key)
+        except ReportError as exc:
+            return view(key, str(exc))
 
     def reset(key):
         if key:
@@ -305,23 +392,69 @@ def create_app(service):
                                     key=f"{event_id}-file-{index}",
                                 )
                             if event.get("reference"):
-                                button = gr.Button(
-                                    "Accept template"
-                                    if event["active"]
-                                    else "Previous draft preview",
-                                    interactive=event["active"],
-                                    variant="primary",
-                                    key=event_id + "-accept",
-                                    preserved_by_key=[],
-                                )
+                                review = event.get("query_review", {})
+                                queries = review.get("queries", {})
+                                accepted = event.get("accepted")
+                                if queries:
+                                    gr.HTML(
+                                        data_review_html(review),
+                                        key=event_id + "-data-review",
+                                    )
+                                if accepted:
+                                    version = accepted["reference"].rsplit("/", 1)[-1]
+                                    gr.Markdown(
+                                        f"✓ Template saved · {version}",
+                                        elem_classes="report-saved",
+                                        key=event_id + "-saved",
+                                    )
+                                with gr.Row(elem_classes="report-approval"):
+                                    reviewed = gr.Checkbox(
+                                        label="Queries and bindings reviewed"
+                                        if accepted
+                                        else "I reviewed the data and queries",
+                                        value=bool(
+                                            accepted and accepted["queries_reviewed"]
+                                        ),
+                                        visible=bool(queries),
+                                        interactive=event["active"],
+                                        key=event_id + "-reviewed",
+                                        preserved_by_key=[],
+                                        scale=1,
+                                    )
+                                    button = gr.Button(
+                                        "Template saved"
+                                        if accepted
+                                        else "Accept template"
+                                        if event["active"]
+                                        else "Previous draft preview",
+                                        visible=not bool(accepted),
+                                        interactive=event["active"] and not queries,
+                                        variant="primary",
+                                        size="sm",
+                                        scale=0,
+                                        min_width=132,
+                                        key=event_id + "-accept",
+                                        preserved_by_key=[],
+                                    )
                                 expected = (event["reference"], event["preview"])
 
                                 def bind_accept(expected):
-                                    return lambda key: accept(key, expected)
+                                    return lambda key, checked: accept(
+                                        key, expected, checked
+                                    )
+
+                                reviewed.change(
+                                    lambda checked, active=event["active"]: gr.update(
+                                        interactive=bool(checked) and active
+                                    ),
+                                    [reviewed],
+                                    button,
+                                    queue=False,
+                                )
 
                                 button.click(
                                     bind_accept(expected),
-                                    [state],
+                                    [state, reviewed],
                                     outputs,
                                     key=event_id + "-accept-click",
                                     **options,
@@ -362,6 +495,28 @@ def create_app(service):
                                 outputs,
                                 key=event_id + "-confirm-click",
                                 **options,
+                            )
+                            edit = gr.Button(
+                                "Edit inputs",
+                                size="sm",
+                                interactive=event["active"],
+                                key=event_id + "-edit",
+                                preserved_by_key=[],
+                            )
+
+                            def bind_edit(expected):
+                                return lambda key: edit_parameters(key, expected)
+
+                            edit.click(
+                                bind_edit(event["proposal"]),
+                                [state],
+                                outputs,
+                                key=event_id + "-edit-click",
+                                **options,
+                            )
+                        elif kind == "input_form":
+                            render_input_form(
+                                event, state, outputs, options, submit_inputs
                             )
                         elif kind == "activity":
                             prefix = "◌ " if event.get("busy") else ""

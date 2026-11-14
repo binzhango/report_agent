@@ -10,6 +10,7 @@ from deepagents import (
 )
 from deepagents.backends.filesystem import FilesystemBackend
 from deepagents.middleware.filesystem import FilesystemMiddleware
+from langchain.agents.middleware import before_model
 from langchain_openai import ChatOpenAI
 from langgraph.checkpoint.memory import InMemorySaver
 
@@ -51,6 +52,14 @@ def create_report_agent(config, session, onboarding, sources, *, model=None):
             use_responses_api=False,
         )
     backend = FilesystemBackend(root_dir=str(config.skills_root), virtual_mode=True)
+
+    @before_model(can_jump_to=["end"])
+    def wait_for_user_inputs(state, runtime):
+        # A valid form stops the graph before another model call. Invalid form
+        # requests still return to the model for bounded validation repair.
+        if session.input_form is not None:
+            return {"jump_to": "end"}
+
     return create_deep_agent(
         model=model,
         backend=backend,
@@ -64,8 +73,9 @@ def create_report_agent(config, session, onboarding, sources, *, model=None):
         subagents=[],
         checkpointer=InMemorySaver(),
         middleware=[
+            wait_for_user_inputs,
             FilesystemMiddleware(
                 backend=backend, tools=["ls", "read_file", "glob", "grep"]
-            )
+            ),
         ],
     )

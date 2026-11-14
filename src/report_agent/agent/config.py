@@ -10,7 +10,7 @@ class AgentConfig:
     model: str
     skills_root: Path
     base_url: str | None = None
-    recursion_limit: int = 80
+    recursion_limit: int = 40
     timeout_seconds: float = 120
     max_output_tokens: int = 4096
     reasoning_strength: str | None = None

@@ -120,7 +120,14 @@ def test_confirmation_reuses_accepted_bundle_with_new_parameters(tmp_path, monke
         service.accept(session)
     first = {"start": "2026-10-01", "end": "2026-11-01"}
     assert service.preview(session, draft, first)["success"]
-    accepted = service.accept(session)
+    assert session.preview_queries["parameters"] == {**first, "region": "Europe"}
+    with pytest.raises(ValueError, match="Review the queries"):
+        service.accept(session)
+    assert (
+        session.preview_queries["queries"]["sales"]["query"]
+        == sales_definition().queries["sales"].query
+    )
+    accepted = service.accept(session, queries_reviewed=True)
     before = {
         p.name: p.read_bytes() for p in store.path(accepted).iterdir() if p.is_file()
     }

@@ -8,8 +8,10 @@ from pathlib import Path
 from threading import Lock
 from uuid import uuid4
 
+from report_agent.application.input_forms import InputForm, report_parameter_values
 from report_agent.application.onboarding import Onboarding
 from report_agent.connectors.files import FileSource
+from report_agent.errors import ReportError
 from report_agent.ingestion.samples import extract_sample
 
 logger = logging.getLogger(__name__)
@@ -57,19 +59,57 @@ class ConversationService:
 
     def remove_session(self, session_id):
         with self.lock:
-            self.agents.pop(session_id, None)
-            self.sessions.pop(session_id, None)
+            session = self.sessions.get(session_id)
+        if session is not None:
+            with session.lock:
+                self.onboarding.discard_examples(session)
+                with self.lock:
+                    self.agents.pop(session_id, None)
+                    self.sessions.pop(session_id, None)
 
     def get_session(self, session_id):
         with self.lock:
             return self.sessions[session_id]
+
+    def submit_inputs(self, session_id, form_id, answers):
+        session = self.get_session(session_id)
+        with session.lock:
+            if session.input_form is None or session.input_form["id"] != form_id:
+                raise ReportError(
+                    "These questions have changed. Use the latest form.",
+                    code="stale_form",
+                )
+            form = InputForm.model_validate(session.input_form)
+            values = form.validate_answers(answers)
+            if form.report_reference:
+                definition = self.onboarding.store.load(form.report_reference)
+                values = report_parameter_values(definition, values)
+                self.onboarding.propose(session, form.report_reference, values)
+            session.form_answers[form.id] = values
+            session.input_form = None
+            summary = "\n".join(
+                f"{field.label}: {values.get(field.id, 'Not specified')}"
+                for field in form.fields
+            )
+            message = (
+                f"Answers for {form.title}:\n"
+                f"{json.dumps(values, ensure_ascii=False)}\n"
+                "Continue using these answers."
+            )
+            return {
+                "message": message,
+                "summary": summary,
+                "report_run": bool(form.report_reference),
+            }
 
     def send(self, session_id, message, *, display_message=None, progress=None):
         session = self.get_session(session_id)
         if not message.strip() or len(message) > 12000:
             raise ValueError("Enter a message of 1–12,000 characters.")
         with session.lock:
+            session.begin_turn()
             session.pending = None
+            session.input_form = None
             if session_id not in self.agents:
                 from report_agent.agent.factory import create_report_agent
 
@@ -101,6 +141,7 @@ class ConversationService:
                             "create_draft": "Building your template…",
                             "preview_report": "Rendering your preview…",
                             "propose_report_run": "Preparing parameters for review…",
+                            "request_report_inputs": "Preparing your input form…",
                         }
                         progress(labels.get(name, "Working on your report…"))
 
@@ -120,6 +161,8 @@ class ConversationService:
                 getattr(last, "usage_metadata", None),
             )
             response = last.content
+            if session.input_form:
+                response = "Complete the form to continue."
             if isinstance(response, list):
                 response = "\n".join(
                     p.get("text", "") for p in response if isinstance(p, dict)

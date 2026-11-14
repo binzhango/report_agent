@@ -6,6 +6,8 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from report_agent.errors import ReportError
+
 
 class StrictModel(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -21,23 +23,37 @@ class Parameter(StrictModel):
     def validate_value(self, value):
         if self.type == "date":
             if not isinstance(value, str):
-                raise ValueError("Use an ISO date string: YYYY-MM-DD.")
-            parsed = date.fromisoformat(value)
+                raise ReportError(
+                    "Use an ISO date string: YYYY-MM-DD.", code="invalid_date"
+                )
+            try:
+                parsed = date.fromisoformat(value)
+            except ValueError as exc:
+                raise ReportError(
+                    "Use an ISO date string: YYYY-MM-DD.", code="invalid_date"
+                ) from exc
             if parsed.isoformat() != value:
-                raise ValueError("Use an ISO date string: YYYY-MM-DD.")
+                raise ReportError(
+                    "Use an ISO date string: YYYY-MM-DD.", code="invalid_date"
+                )
         elif self.type == "string":
             if not isinstance(value, str) or not value.strip():
-                raise ValueError("Expected a non-empty string.")
+                raise ReportError(
+                    "Expected a non-empty string.", code="invalid_parameter"
+                )
         elif self.type == "boolean":
             if type(value) is not bool:
-                raise ValueError("Expected a boolean.")
+                raise ReportError("Expected a boolean.", code="invalid_parameter")
         elif self.type == "integer":
             if type(value) is not int:
-                raise ValueError("Expected an integer.")
+                raise ReportError("Expected an integer.", code="invalid_parameter")
         elif type(value) not in (int, float) or not math.isfinite(value):
-            raise ValueError("Expected a finite number.")
+            raise ReportError("Expected a finite number.", code="invalid_parameter")
         if self.choices and value not in self.choices:
-            raise ValueError(f"Choose one of {self.choices}.")
+            raise ReportError(
+                "Choose one of this parameter's declared choices.",
+                code="invalid_choice",
+            )
         return value
 
     @model_validator(mode="after")
@@ -56,23 +72,33 @@ class ParameterOrder(StrictModel):
 
 def resolve_parameters(definitions, supplied, rules=()):
     if not isinstance(supplied, dict):
-        raise ValueError("Parameter values must be a mapping.")
+        raise ReportError(
+            "Parameter values must be a mapping.", code="invalid_parameters"
+        )
     unknown = supplied.keys() - definitions.keys()
     if unknown:
-        raise ValueError(f"Unknown parameters: {sorted(unknown)}")
+        raise ReportError(
+            "Unknown parameters. Use only names declared in the report.",
+            code="unknown_parameters",
+        )
     result = {}
     for name, definition in definitions.items():
         value = supplied.get(name, definition.default)
         if value is None:
             if definition.required:
-                raise ValueError(f"Missing parameter: {name}")
+                raise ReportError(
+                    f"Missing parameter: {name}", code="missing_parameter"
+                )
             continue
         try:
             result[name] = definition.validate_value(value)
-        except (TypeError, ValueError) as exc:
-            raise ValueError(f"{name}: {exc}") from exc
+        except ReportError as exc:
+            raise ReportError(f"{name}: {exc}", code=exc.code) from exc
     for rule in rules:
         if rule.before in result and rule.after in result:
             if result[rule.before] >= result[rule.after]:
-                raise ValueError(f"{rule.before} must be before {rule.after}.")
+                raise ReportError(
+                    f"{rule.before} must be before {rule.after}.",
+                    code="parameter_order",
+                )
     return result
