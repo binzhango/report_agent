@@ -161,12 +161,9 @@ do not replace process/filesystem/network isolation for hosted untrusted uploads
 
 ## Verification status
 
-[CI](../.github/workflows/ci.yml) installs LibreOffice Writer/Calc/Impress and the
-example fonts on Ubuntu 24.04, then runs Ruff and pytest, including real Office
-exports. It records `soffice --version`, exact system package versions, Python and
-uv versions alongside JUnit results in the workflow artifacts. Color assertions
-ignore hexadecimal case. PDF integration tests skip if texres is unavailable;
-local development should run them with texres installed.
+Office integration tests perform real exports, and each build retains its
+LibreOffice version. Color assertions ignore hexadecimal case. PDF integration
+tests skip if texres is unavailable; run them locally with texres installed.
 
 Automated checks cover schema validation, XML escaping and data types, slot
 compatibility, output protection, conversion failures, formula cached results,

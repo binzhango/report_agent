@@ -173,11 +173,10 @@ uv run --extra parquet pytest -q
 uv build
 ```
 
-[CI](.github/workflows/ci.yml) installs LibreOffice and fonts on Ubuntu 24.04,
-runs Ruff and pytest, and records exact engine/package versions with JUnit
-results. Office integration tests perform actual conversions. PDF integration
-tests skip when texres or required Poppler tools are absent; run locally with
-those dependencies for full PDF coverage.
+Office integration tests perform actual LibreOffice conversions. Each Office
+build records its engine version in the retained artifacts. PDF integration tests
+skip when texres or required Poppler tools are absent; run locally with those
+dependencies for full PDF coverage.
 
 Generated reports, caches, environments and `.artifacts` directories are ignored.
 Keep reusable templates and their static resources in version control; runtime
