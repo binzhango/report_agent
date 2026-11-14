@@ -1,4 +1,8 @@
-# Comprehensive report example
+# Comprehensive PDF report example
+
+This example uses schema v1 and `LatexPdfBackend`. The
+[Office examples](../office_comprehensive/README.md) reuse its business data with
+separate schema-v2 templates and Office-specific formatting.
 
 For a page-by-page explanation with screenshots, source mappings, metadata,
 rendering objects, and artifact inspection, read the
@@ -11,8 +15,9 @@ uv run python examples/comprehensive/render.py
 Output: `output/pdf/comprehensive-report.pdf`, with retained TeX, graphics,
 and compiler log in `output/pdf/comprehensive-report.artifacts/`.
 
-The seven-page report uses synthetic business data. All report content flows
-through the public `ReportRenderer` API and its actual content adapters.
+The checked layout has seven pages and uses synthetic business data. All report
+content flows through `ReportRenderer`, which dispatches to `LatexPdfBackend`
+and its content adapters. Fonts or layout changes can alter pagination.
 
 | Report element | Project capability |
 | --- | --- |
@@ -38,5 +43,6 @@ Graphics metadata accepts a positive dimension such as `38mm`, `3in`, or
 `0.9\linewidth`. Tables accept `preset`, `precision` (0-8), `show_index`, and
 `longtable`. Templates must load the packages needed by their content, such as
 `graphicx`, `booktabs`, `multirow`, `longtable`, and `xcolor` with the table option.
-Wide-table resizing, landscape policies, arbitrary chart definitions, and the
-Great Tables backend remain future work.
+Automatic wide-table resizing/orientation selection, declarative chart definitions
+and the Great Tables backend are not implemented. Explicit landscape/rotation
+is already supported through the template; see the [rotated-table example](../rotated_tables/README.md).

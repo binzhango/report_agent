@@ -1,4 +1,7 @@
-# Rotated table example
+# Rotated PDF table example
+
+This example uses schema-v1 LaTeX templates. For DOCX orientation changes, use
+[Writer page styles](../../docs/office-template-authoring.md#docx-pages-and-sections).
 
 ```sh
 uv run python examples/rotated_tables/render.py

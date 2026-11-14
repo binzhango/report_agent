@@ -13,7 +13,7 @@ and verification status.
 Install the Python project normally and install LibreOffice separately. `soffice`
 must be available on PATH. Development verification currently uses the available
 LibreOfficeDev 26.8 build; a released-version baseline and desktop Microsoft Office
-compatibility checks remain outstanding. Every Office result carries a warning
+compatibility checks remain outstanding. Successful Office builds carry a warning
 and a build manifest marking that status. Package verification does not establish
 identical Word, Excel, or PowerPoint rendering.
 
@@ -82,7 +82,8 @@ Flat XML owns styles and layout. XML slots use the namespace
 Templates may refer to their own ODF styles using `style-name` for paragraphs and
 `table-style-name`, `header-cell-style-name`, and `body-cell-style-name` for tables.
 Physical image dimensions use cm, mm, in, or pt. Runtime text is serialized as XML
-text; it is never executable markup. Empty optional slots disappear. Design the
+text; it is never executable markup. Omitted optional slots disappear, while
+surrounding headings, frames and page breaks remain. Design the
 base file in LibreOffice, save Flat XML, then add slots in a text editor; visual
 re-editing is not guaranteed to preserve custom slot elements.
 
@@ -125,8 +126,10 @@ and native PowerPoint object effects are explicitly unsupported. GIF was selecte
 because the local export spike preserved its original bytes and frames. Playback
 in a named desktop PowerPoint version remains unverified; web support is separate.
 
-The build verifies package relationships and requires the original GIF in the
-PPTX media package. A flattened or lost animation fails the build. PDF previews
+The build verifies package relationships and requires the original GIF in media
+reachable from the presentation, including through slides, layouts and masters.
+Unreferenced media files do not satisfy the check. A flattened or lost animation
+fails the build. PDF previews
 cannot establish motion or playback. The poster is retained for static previews;
 no automatic preview-PDF generation is currently exposed.
 
@@ -184,12 +187,6 @@ source distribution build. Real conversion tests include native DOCX content and
 figure embedding, concurrent private profiles, XLSX formula cached values, and a
 query-generated GIF retained in a portable PPTX package.
 
-`benchmarks/office_generation.py --runs 3` measured 100-row report preparation,
-conversion, verification, and publication at 0.80–0.84 seconds per DOCX and
-0.797–0.803 seconds per XLSX in this development environment. These measurements
-exclude previews and animation encoding and are not production capacity targets.
-Raw measurements are written under `output/benchmarks/office/`.
-
-Desktop PowerPoint was detected locally, but Computer Use was not approved to
-control the app. The attempted Slide Show verification could not proceed; playback
-remains unverified. No alternative UI-control mechanism was used.
+See the [benchmark reference](../benchmarks/README.md#office-runner) for commands,
+measurement boundaries and historical Office timings. Desktop PowerPoint playback
+remains unverified; successful package tests do not change that status.

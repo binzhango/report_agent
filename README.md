@@ -141,7 +141,7 @@ result, since an old output file can still exist after a failed build.
 
 Use distinct output stems for concurrent jobs, including across formats. Templates
 are trusted source files; validation and private profiles are not a sandbox for
-untrusted uploads. Details are in the [PDF checks guide](docs/review-hardening.md)
+untrusted uploads. Details are in the [validation guide](docs/review-hardening.md)
 and [Office contracts](docs/office-reports.md).
 
 ## Examples and documentation
@@ -155,8 +155,8 @@ and [Office contracts](docs/office-reports.md).
 | [Comprehensive PDF walkthrough](docs/comprehensive-example-walkthrough.md) | Full LaTeX template, charts, styled tables and paginated appendix |
 | [Placeholder style guide](docs/placeholder-styles.md) | LaTeX typography, boxes, headings and page transitions |
 | [Content resolution](docs/content-resolution.md) | Query adapters, agent summaries, generators and CLI configuration |
-| [Project architecture](docs/project-overview.md) | Packages, collaborators and build lifecycle |
-| [PDF validation](docs/review-hardening.md) | Package declarations, input manifests and overflow behavior |
+| [Project architecture](docs/project-overview.md) | Resolver, PDF/Office backends, module ownership, process and artifact lifetimes |
+| [Validation and diagnostics](docs/review-hardening.md) | Shared input/publication contracts and PDF package/overflow checks |
 | [Benchmarks](benchmarks/README.md) | Sequential report generation measurements |
 
 Small runnable Office examples live in `examples/office_docx`, `office_xlsx` and

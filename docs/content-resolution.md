@@ -7,20 +7,17 @@ model SDK, or live SQL/LLM implementation. Inject a `ContentResolver` through
 non-user sources before backend validation. The same path supports both metadata
 schemas, PDF and Office output. Explicit values override agent/generator inputs.
 
-```text
-TemplateMetadata / OfficeMetadata + supplied inputs + QuerySource bindings
-                         |
-                         v
-                  ContentResolver
-                 /               \
-     DataSource.fetch()       AgentTextGenerator.generate()
-           tables first        bounded summaries of uses tables
-                 \               /
-                         v
-        ResolutionResult.inputs: TableInput / TextInput / other supplied values
-                         |
-                         v
-             backend validation -> conversion -> PDF / DOCX / XLSX / PPTX
+```mermaid
+flowchart TD
+    Request[RenderRequest with metadata, supplied inputs and queries] --> Facade[ReportRenderer]
+    Facade --> Resolver[ContentResolver when needed]
+    Resolver --> Tables[Resolve query-backed tables]
+    Tables --> Text[Generate unsupplied agent text from bounded summaries]
+    Text --> Animation[Generate unsupplied animations from declared tables]
+    Animation --> Typed[ResolutionResult with typed inputs and diagnostics]
+    Typed --> Check{Resolution succeeded?}
+    Check -->|Yes| Backend[Selected backend validates, converts and publishes]
+    Check -->|No| Failure[Return resolution diagnostics]
 ```
 
 ## Metadata
@@ -47,7 +44,8 @@ in `uses`; see the [Office guide](office-reports.md#animation-generation).
 An agent input requires a non-empty prompt and an explicit positive `max_chars`.
 Every `uses` name must identify a
 declared table. Agent-to-agent dependencies are not accepted; the supported
-dependency order is prepared/query-backed tables followed by text.
+dependency order is prepared/query-backed tables, then agent text, then Office
+animations. Each generation step skips values already supplied by the caller.
 
 `visible` defaults to `true`. Set `visible: false` on a context-only table that
 the generator needs but the report should not display. It remains a declared,
@@ -56,8 +54,8 @@ summarizes it normally. It needs no template placeholder and the renderer skips
 its conversion, styling, assets, and package requirements. Referencing a hidden
 input in a template is a `hidden_placeholder` error. A table in `uses` must still
 be resolved even if it is optional in metadata.
-Hidden inputs must be referenced by an agent or animation generator's `uses`; metadata
-rejects unreferenced hidden declarations as dead configuration.
+Hidden inputs must be referenced by an agent or animation generator's `uses`;
+metadata rejects unreferenced hidden declarations as dead configuration.
 
 The prompt may be text or an identifier understood by your generator adapter.
 No prompt registry is built into the renderer. JSON/YAML metadata share the same
@@ -163,11 +161,12 @@ builder. Fetching the extra row lets the resolver detect an exceeded limit rathe
 than silently returning a truncated report. Do not append SQL blindly; adapter
 validation, binding, read-only permissions, and timeouts still apply.
 
-`AgentTextGenerator.generate(request)` now receives a `GenerationRequest` with
+## Agent text and table summaries
+
+`AgentTextGenerator.generate(request)` receives a `GenerationRequest` with
 `prompt`, `tables`, `max_chars`, and optional `retry_feedback`. Import it from
-`report_agent.resolution`. Application adapters using the previous
-`generate(prompt, tables)` signature must migrate to this request object and
-include the character limit in their model instructions.
+`report_agent.resolution`. Adapters should include the character limit in their
+model instructions.
 
 `request.tables` maps only explicitly permitted table names to `TableSummary`
 objects. Each summary contains
@@ -208,22 +207,33 @@ profiles alone do not establish that generated business claims are correct.
 
 ## Resolution and error behavior
 
-- Query results are resolved before any dependent agent text.
+- Query results are resolved before dependent agent text and animation generation.
 - Unknown bindings/connections, conflicting direct/query values, empty results,
   excess rows, missing table dependencies, and absent generators return diagnostics.
-- Explicitly supplied agent text takes precedence over generation, allowing a
-  reviewed value to be used without contacting a model.
+- Explicitly supplied agent text and animation inputs take precedence over
+  generation, allowing reviewed content to be reused.
 - If generated text exceeds `max_chars`, the resolver allows exactly one retry.
   The next request contains the same prompt, table summaries, and limit, plus
   `retry_feedback` describing the length violation and previous character count.
   A second invalid output fails with `resolution_failed` and reports that the
   retry was used. The resolver retries only length violations.
-- Failures can retain partial resolved inputs. Check diagnostics before rendering.
+- Direct `resolver.resolve()` calls can return partial resolved inputs on failure;
+  check diagnostics before using them. The normal render path performs this check
+  and returns without invoking a backend when resolution has errors.
 - Unexpected adapter exceptions are logged with tracebacks and become `internal_error`; cancellation exceptions
   still propagate.
 - Generator output must be a string and becomes an ordinary `TextInput`. The
   resolver checks its length using the shared text policy; the renderer also
   validates supplied/overridden text and escapes it like user text. It never becomes
-  trusted LaTeX.
+  trusted LaTeX or XML. Invalid XML 1.0 characters are rejected as well as length
+  violations; only a length violation receives a retry.
+
+For Office animation inputs, `AnimationGenerators` receives copied dependency
+DataFrames rather than the bounded summaries used by text generators. Registered
+functions return a finite Matplotlib animation. The registry owns the worker,
+exported GIF/optional MP4 and poster; the renderer owns their workspace lifetime.
+Only GIF insertion into final PPTX is currently supported. See
+[animation generation](office-reports.md#animation-generation) for limits and
+the dedicated single-threaded macOS/Linux worker requirement.
 
 Tests inject deterministic local doubles. They do not contact databases or models.

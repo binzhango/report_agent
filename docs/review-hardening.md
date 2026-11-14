@@ -1,112 +1,173 @@
-# Renderer review changes
+# Validation, diagnostics and publication
 
-Implemented in response to the supplied review. The renderer remains independent
-of optional data/agent preparation.
+This reference covers the current shared render contracts and PDF-specific
+package/overflow checks. The [architecture](project-overview.md) describes backend
+dispatch; [Office contracts](office-reports.md) describe Flat ODF, conversion and
+animation restrictions.
 
-| Review item | Implementation |
-| --- | --- |
-| Unused package requirements | After content preparation, validate each input's package requirements against literal package declarations, local TeX/class/style dependencies, and an explicit external-package manifest. Missing requirements return `missing_package` with the input name before compilation. |
-| Unexpected exceptions escape | Final `Exception` boundaries return `internal_error` with the stage and, for content failures, the input name. `KeyboardInterrupt`/`SystemExit` still propagate. |
-| Backend collisions | Registry keys are `(type, backend)`; tables default to Styler. `backend: great_tables` is recognized, but no Great Tables adapter is registered. Selection fails clearly before compilation. Its presets are not implemented or advertised as supported. |
-| Duplicated text rules | One `text_issues` policy is shared by aggregate preflight and standalone TextRenderer calls. Adapters retain defensive checks without independently defining length/type rules. |
-| Text-only CLI | Added JSON/YAML `--inputs`, CSV/Parquet `--table`, `--image`, and `--graph`. Input-manifest paths are relative to the manifest; explicit flag paths are relative to the working directory. Explicit flags override manifest values; duplicate explicit names are rejected. |
-| Wide tables silently overflow | Generated table spans are marked in source comments. Attributed overfull hboxes produce `table_overflow`: warning up to `compiler.table_overflow_tolerance_pt` (default 2pt), error above it. Failed builds preserve previous PDFs and retain logs/source. |
-| Colored-cell dependencies | Heatmaps/comparison tables require `colortbl` as well as `xcolor`. The scanner treats `\usepackage[table]{xcolor}` as supplying both; plain `xcolor` supplies only itself. |
-| Agent-only context | `visible: false` inputs are resolved and validated but need no placeholder and are never rendered. Agent inputs require explicit `max_chars`; optional `summary_head_rows` adds bounded category/time-series context. |
-| Generation constraints | `GenerationRequest` supplies `max_chars` to the generator; a length violation permits one retry with feedback before hard failure. |
-| Raw context size | Opt-in raw rows share an 8,192-character JSON budget across all tables in a generation request. Trailing rows are dropped and omission counts are exposed. |
-| Dead hidden declarations | Metadata rejects hidden inputs that no agent `uses` references. |
-| Output/resource collisions | Output validation rejects a PDF destination that resolves to a template resource before staging or compilation. Artifact destinations are also checked against template resources. |
-| Implicit rounding | An omitted precision preserves numeric display precision; explicit precision rounds floating values. Integer counts remain integer displays. |
-| pdfLaTeX text limitations | Escape `<`, `>`, and `|` with text commands, including in OT1 templates. Keep supported pdfLaTeX examples; recommend XeLaTeX/LuaLaTeX and appropriate fonts for broader Unicode coverage. |
-| Ambiguous stages | Separate metadata, template loading, output validation, input validation, content rendering, template rendering, package validation, compilation, and publication stages. |
+## Validation and resolution order
+
+`ReportRenderer` first parses schema-v1 or schema-v2 metadata. If query bindings or
+non-user sources are present, it runs the configured `ContentResolver` before
+calling the selected backend. Supplied values override agent/generator inputs.
+An absent required adapter produces `resolution_failed`, not a backend
+`missing_input` error. See [resolution wiring](content-resolution.md).
+
+The PDF and Office backends then check output paths, template/input compatibility
+and typed values. Visible declarations need a matching placeholder; hidden context
+tables must have a declared agent/generator consumer and cannot have a visible
+placeholder. Missing required values fail unless an applicable default exists.
+Omitted optional values are allowed, but declarations still need compatible types
+and slots/backends.
+
+`text_issues` is shared by PDF validation, Office validation, agent text checking
+and the standalone PDF `TextRenderer`. It checks `TextInput`, string type,
+character limit and the XML 1.0 character set. Unsupported control characters,
+lone surrogates, U+FFFE and U+FFFF fail before compilation/conversion, with an input
+name on backend input-validation diagnostics. This does not guarantee a selected
+font has a glyph for every otherwise valid character.
+
+For PDF, registry keys are `(type, backend)` and tables default to Styler.
+`backend: great_tables` is recognized by schema v1 but has no bundled renderer;
+selecting it returns `unsupported_backend`, including on omitted optional inputs.
+Office tables use `OdfTemplate` and do not use that registry or its presets.
 
 ## Package declarations
 
-Templates still own their preamble. Requirements are checked, not injected.
-The scanner follows literal `\usepackage`, `\RequirePackage`, `\documentclass`,
-`\LoadClass`, and braced `\input`/`\include` dependencies inside the template bundle.
-Comments and common verbatim/listing bodies are ignored.
-Options are inspected: `xcolor` with the `table` option supplies `colortbl` for
-generated cell colors. Loading `colortbl` explicitly also satisfies that requirement.
-The scanner follows literal commands and local dependencies in source order.
-Forward `table` via `\PassOptionsToPackage{table}{xcolor}` or the global
-`\documentclass[table]{...}` option before the first `xcolor` load.
-These options alone do not imply that `xcolor` itself was loaded. External
-class/style dependencies still use `provided_packages` when they cannot be scanned.
+These rules apply to LaTeX/PDF only. Templates own their preamble; requirements
+are checked rather than injected. The scanner follows literal `\usepackage`,
+`\RequirePackage`, `\documentclass`, `\LoadClass` and braced `\input`/`\include`
+dependencies within the template bundle. Comments and common verbatim/listing
+bodies are ignored.
 
-For a package supplied indirectly by an external class/style or macro-generated
-loading logic, the trusted template author can declare:
+Colored table cells need `colortbl` as well as `xcolor`.
+`\usepackage[table]{xcolor}` supplies both; plain `xcolor` supplies only itself.
+The scanner follows declarations in source order. Forward the `table` option with
+`\PassOptionsToPackage{table}{xcolor}` or the global `\documentclass[table]{...}`
+option before the first `xcolor` load. An option alone does not load the package.
+
+For a package supplied by an external class or macro-generated loading logic,
+the trusted template author can assert:
 
 ```json
 {"provided_packages": ["graphicx", "booktabs"]}
 ```
 
-This is an assertion that the template loads those packages, not a request to load
-them. The scanner is not a full TeX interpreter: it cannot prove arbitrary macro
-or conditional execution, or that an installed compiler contains every package.
-Keep ordinary dependencies explicit; compilation remains the final authority.
+This states that the template supplies those packages. It does not request their
+insertion or installation. The scanner is not a TeX interpreter and cannot prove
+arbitrary macro execution. Missing declared requirements return `missing_package`
+with the input name before compilation; the compiler checks actual availability.
 
 ## Input manifest
+
+Both backends accept the same runtime-file manifest structure:
 
 ```yaml
 inputs:
   summary: Quarterly sales review
   logo: {type: image, path: assets/logo.png}
-  trend: {type: graph, path: assets/trend.pdf}
+  trend: {type: graph, path: assets/trend.png}
   sales: {type: table, path: data/sales.csv}
 ```
 
-JSON is equivalent. A text descriptor `{type: text, text: ...}` is also supported.
-Figure objects remain Python-only; file-based graphs cover the CLI equivalent.
+JSON is equivalent. Text also accepts `{type: text, text: ...}`. PDF graphics can
+use PNG/JPEG/PDF; Office image/graph slots accept PNG/JPEG. Live `FigureInput`
+objects enter through Python. PPTX animation descriptors use
+`{type: animation, path: assets/chart.gif, poster_path: assets/poster.png}`;
+`poster_path` is optional and defaults to the animation file for poster staging.
 
 ```sh
 uv run report render path/to/template \
-  --metadata path/to/template/template.json \
+  --metadata path/to/template/template.yaml \
   --inputs path/to/inputs.yaml \
   --text 'summary=Reviewed override' \
-  --output output/pdf/review.pdf
+  --output output/review.docx
 ```
 
-Parquet support is optional: `uv sync --extra parquet`, or install
-`report-agent[parquet]`. CSV does not require that extra.
+Choose an output suffix matching the template metadata. Explicit flags override
+manifest values, and repeated explicit input names are rejected. Manifest asset
+paths are relative to the manifest; explicit flag paths are relative to the
+working directory. CSV is included; Parquet requires `uv sync --locked --extra
+parquet` or `report-agent[parquet]`.
 
-The local CLI permits arbitrary asset paths by default. For agent/API-created
-manifests, use `InputFileLoader(base_directory=allowed_directory)` or CLI
-`--input-root path/to/allowed-directory`. It checks resolved file paths before
-reading CSV/Parquet or accepting image/graph paths, rejecting absolute paths,
-parent traversal, and symlinks that resolve outside the root. Explicit CLI asset
-flags follow the same restriction. Relative manifest paths still resolve against
-the manifest location. The restriction covers referenced assets, not the manifest,
-template, metadata, or output paths. It assumes the allowed filesystem is not
-being changed concurrently; it is not process isolation.
+`--resolver module:factory` and `--queries queries.yaml` configure the normal
+resolution path. The factory is explicit trusted application code selected by the
+caller, not imported from template metadata. Query bindings use a separate file;
+a name cannot have both a query and a supplied value.
+
+The CLI permits arbitrary asset paths by default. `--input-root DIRECTORY` or
+`InputFileLoader(base_directory=...)` checks resolved asset paths before reading
+CSV/Parquet or accepting media references, including animation posters. Paths
+outside the allowed root are rejected, whether absolute, traversing or symlinked.
+Paths inside it can be absolute. This restriction covers assets, not the manifest,
+template, metadata or output. It assumes the filesystem stays stable during the
+build and is not process isolation.
 
 ## Overflow tolerance
+
+This setting applies to schema-v1 PDF tables:
 
 ```json
 {"compiler": {"engine": "xelatex", "table_overflow_tolerance_pt": 2.0}}
 ```
 
-Tolerance must be finite and non-negative. Attributed width at or below it is a
-warning and permits publication. Greater width is an error; zero makes any
-positive reported overflow fail. Unknown-width attributed overflow fails
-conservatively. The setting classifies reported diagnostics; it does not change
-TeX's own warning thresholds or physically resize a table.
+Generated table spans carry source markers. Attributed overfull hboxes at or
+below the finite, nonnegative tolerance warn; greater width fails publication.
+Zero makes any positive attributed overflow fail. Unknown-width attributed
+overflow fails conservatively. Unattributed/static template overflow remains a
+compiler warning. Nested TeX execution is not a complete source-mapping system.
 
-## Boundaries that remain explicit
+The setting classifies reported diagnostics. It does not resize tables, choose
+landscape, split columns or change TeX warning thresholds. Office has no equivalent
+TeX overflow tolerance: inspect native document/slide layout after conversion.
 
-Table overflow above tolerance is an error when attributed to a generated input. This is not
-automatic column splitting, resizing, or landscape selection. Unattributed/static
-template overflow remains a compiler warning. Line-range attribution is based on
-the expanded entrypoint; arbitrary nested TeX file execution is not a complete
-source-mapping system.
+## Publication and failure behavior
 
-Templates remain trusted. Sandboxed Jinja, escaping, and disabled shell escape do
-not make arbitrary uploaded TeX safe. No public template-upload API was added.
-`openin_any`/`openout_any` are not claimed as isolation controls for texres without
-engine-specific verification; untrusted templates require a tested filesystem/
-process isolation boundary.
+Final report paths and artifact destinations are checked against source resources.
+Each output stem owns a sibling `.artifacts` directory. `publish_snapshot` stages
+a complete replacement before switching directories, so old hashes and failure
+logs do not accumulate. If staging fails, the previous snapshot remains. Callers
+must serialize writes to the same destination and use distinct output stems for
+concurrent reports, including reports with different output formats.
 
-[Content resolution](content-resolution.md) now provides injectable data-source
-and text-generator interfaces, dependency ordering, bounded table summaries, and
-structured results. Live SQL/LLM adapters are deliberately absent.
+A successful build publishes the final report after artifacts. Those two
+publications are not a single transaction. Conversion/compiler failures preserve
+the old final report and retain available diagnostic artifacts; early validation
+failures may have no new artifacts. An Office failure to retain diagnostic files
+adds `artifact_retention_failed` without masking the original conversion error.
+
+`RenderResult.output_path` is the cross-format success field. `pdf_path` is only
+a PDF alias. The CLI prints diagnostics to stderr and a successful path to stdout;
+render failures exit 1, while invalid CLI arguments exit 2. Warnings alone do not
+mean failure, including the current Office `experimental_backend` warning.
+
+| Stage / diagnostic | What to inspect |
+| --- | --- |
+| `metadata / invalid_input` | Schema, format, fields, parsing and duplicate keys |
+| `resolution / resolution_failed` | Adapters, queries, dependency tables and generated content |
+| `input_validation / missing_input`, `input_type`, `invalid_text`, `text_length` | Named runtime values/defaults and text policy |
+| `input_validation / undeclared_placeholder`, `unused_input`, `hidden_placeholder`, `invalid_slot` | Template/metadata names, visibility and slot type |
+| `package_validation / missing_package` | PDF preamble or `provided_packages` |
+| `compilation / table_overflow` | PDF table width and tolerance |
+| `compilation / compiler_*` | texres executable, compiler log and process lifetime |
+| `conversion / converter_*`, `missing_output` | LibreOffice executable, version and retained conversion log |
+| `output_validation / invalid_office_package`, `animation_not_preserved` | Office ZIP structure, relationships and original animated media |
+| `publication / artifact_retention_failed` | Filesystem/storage error retaining an Office failure's artifacts |
+
+Format-specific failures can also report `invalid_input`, `build_failed` or
+`internal_error`. Diagnostics carry input names where the failure can be attributed.
+Cancellation exceptions such as `KeyboardInterrupt` propagate; owned workspaces
+and process cleanup still apply.
+
+## Trusted-source boundary
+
+Templates and registered Python generators are trusted. TeX escaping, sandboxed
+Jinja and disabled shell escape do not make arbitrary TeX safe. Office rejects
+DTD/entities, scripts, embedded executable objects, external references including
+hyperlinks, DDE sources and WEBSERVICE/HYPERLINK/DDE calls. The converter uses a
+private profile and an allowlisted environment with private XDG/temp directories.
+
+These controls are not an OS/filesystem/network sandbox. There is no bundled
+public template-upload or hosted execution service. Application data adapters own
+query authorization, read-only access, parameter binding, result bounds and
+timeouts; model adapters own prompt construction and factual validation.

@@ -1,4 +1,7 @@
-# Placeholder styles example
+# LaTeX placeholder styles example
+
+This schema-v1 PDF example uses `LatexPdfBackend` and `LatexPlaceholderStyler`.
+Office templates use [ODF styles](../../docs/office-template-authoring.md) instead.
 
 ```sh
 uv run python examples/placeholder_styles/render.py

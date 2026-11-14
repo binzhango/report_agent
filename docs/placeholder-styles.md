@@ -1,4 +1,9 @@
-# Style configuration keyed by placeholder name
+# LaTeX placeholder style configuration
+
+This guide applies to schema-v1 PDF templates and `LatexPdfBackend`. Schema-v2
+Office templates define styles in Flat ODF; see the
+[Office authoring reference](office-template-authoring.md). They do not use
+`inputs.<name>.style` or `LatexPlaceholderStyler`.
 
 Each placeholder name identifies both its content declaration and its presentation
 settings. The template does not need a separate style expression:
@@ -85,7 +90,8 @@ spacing, or page-break code.
 | [InputDefinition](../src/report_agent/metadata/models.py) | Attach that style to one input name and reject incompatible longtable containers |
 | Content renderer | Convert the typed value into trusted `RenderedContent` |
 | [PlaceholderStyler protocol / LatexPlaceholderStyler](../src/report_agent/presentation/styler.py) | Apply scoped presentation to prepared content; preserve its assets and package requirements |
-| [ReportRenderer](../src/report_agent/application/service.py) | Resolve defaults, invoke the content strategy, apply presentation, then expand the whole template |
+| [ReportRenderer](../src/report_agent/application/service.py) | Load metadata, resolve query/agent content when needed, and select the document backend |
+| [LatexPdfBackend](../src/report_agent/backends/latex_pdf.py) | Resolve defaults/optional values, invoke the content strategy, apply presentation, and expand the TeX template |
 | [JinjaTemplateEngine](../src/report_agent/templates/engine.py) | Bind the final fragment to the unchanged placeholder name |
 
 The styler does not escape the content again. Text and table adapters already
@@ -166,8 +172,9 @@ cell formatting and heatmap rules remain in table metadata such as `preset`.
 - `longtable: true` can use block styling without a box. Metadata rejects placing
   it inside this unbreakable container, or giving it inline styling.
 - Empty content produces no style wrapper, heading, spacing, or page break.
-  Omitted optional inputs therefore do not create empty sections.
-- With no style (or an empty style object), rendering retains the previous output.
+  Surrounding headings and page breaks authored directly in the template remain.
+- With no style (or an empty style object), the prepared content receives no
+  additional presentation wrapper.
 
 The template must load `xcolor` when using colors/boxes. It must also load the
 packages required by its content adapters. Colored table cells require `colortbl`,
@@ -177,9 +184,8 @@ are checked against literal package declarations and `provided_packages` metadat
 They are not automatically injected into the preamble. See the
 [package declaration contract](review-hardening.md#package-declarations) for scanner limits.
 
-Column splitting, automatic table-width planning, and template slot-capability
-validation are still proposed in the [table layout design](table-layout-design.md).
-Common placeholder presentation does not implement those table-specific policies.
+Automatic column splitting, table-width planning and slot-capability negotiation
+are not implemented. Common placeholder presentation does not provide those policies.
 
 ## Reuse and customization
 
@@ -187,13 +193,15 @@ A style belongs to a placeholder name. If `<<summary>>` appears twice, both
 occurrences receive the same prepared fragment and style. Use two distinct keys
 when those occurrences should have different presentation.
 
-The new optional `style` field works alongside existing `preset`, `precision`,
+The optional schema-v1 `style` field works alongside `preset`, `precision`,
 graphics `width`, and `longtable` fields. Existing templates and metadata need no
 style configuration to keep working. Global themes and named style inheritance
-are not implemented by this change.
+are not implemented for this LaTeX metadata layer. ODF named styles are a separate
+Office-template mechanism.
 
-Applications constructing `ReportRenderer` directly now supply a `styler`
-collaborator. `create_renderer()` supplies `LatexPlaceholderStyler` automatically.
+Applications constructing `ReportRenderer` directly supply its PDF `styler`
+collaborator, which is passed to `LatexPdfBackend`. `create_renderer()` supplies
+`LatexPlaceholderStyler` automatically.
 
 ## Working demonstration
 
@@ -201,7 +209,7 @@ collaborator. `create_renderer()` supplies `LatexPlaceholderStyler` automaticall
 uv run python examples/placeholder_styles/render.py
 ```
 
-Output: [placeholder-styles.pdf](../output/pdf/placeholder-styles.pdf).
+Output after running the example: `output/pdf/placeholder-styles.pdf`.
 
 | PDF page | Demonstration |
 | --- | --- |

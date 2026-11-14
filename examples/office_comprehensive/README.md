@@ -87,14 +87,18 @@ numeric; text is used only where the underlying value is a label or identifier.
 - `data.py`: shared PDF-source data with explicit Office adaptations. MultiIndex
   product labels become Group/Product columns. Heatmaps are chart images in the
   document/deck; raw service values remain native cells in the workbook.
-- `render.py`: resolution, animation generation and calls to Report Agent.
+- `render.py`: supplies typed data, registers an application resolver for PPTX,
+  and passes query bindings to `RenderRequest`. The normal `ReportRenderer` path
+  performs resolution and owns generated media through conversion.
 
 For complete examples of defining a page style, a page break, a slide, a positioned
 text/chart frame, a tab, a formula and column/cell styles, read the
 [Office template authoring guide](../../docs/office-template-authoring.md).
 
-The rendered DOCX/PPTX and workbook print views are reviewed through LibreOffice
-PDF previews. This checks static appearance, not PowerPoint animation playback.
+The example layouts have been reviewed through LibreOffice PDF previews. The
+script does not generate those previews or automatically inspect visual fit;
+integration tests check structure, data and media preservation. Static previews
+do not establish PowerPoint animation playback.
 The Office backend remains experimental pending a released LibreOffice baseline
 and native target-application checks described in the
 [Office report guide](../../docs/office-reports.md).

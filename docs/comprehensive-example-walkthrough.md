@@ -2,11 +2,13 @@
 
 This guide explains the Northstar sample report page by page, then follows the
 objects and files through the report engine. It describes the current working
-implementation. Business figures are synthetic; the sample does not call a
-database or an LLM.
+schema-v1 PDF backend. For the current multi-format architecture, see the
+[architecture reference](project-overview.md); the same data is also used by the
+[Office examples](../examples/office_comprehensive/README.md). Business figures
+are synthetic; this PDF sample does not call a database or an LLM.
 
-Start with the [generated PDF](../output/pdf/comprehensive-report.pdf), then keep
-these three source files open:
+Run the example to create `output/pdf/comprehensive-report.pdf`, then keep these
+three source files open:
 
 | File | Responsibility |
 | --- | --- |
@@ -274,8 +276,8 @@ signature, hashes/copies the asset, and inserts a graphics command at
 
 | Placeholder | Metadata | Result |
 | --- | --- | --- |
-| `<<assumptions>>` | `type: text` with a default sentence | The service creates a `TextInput` from the default, then escapes and renders it |
-| `<<optional_note>>` | `type: text`, `required: false`, no default | The service binds an empty `RenderedContent`; no text appears |
+| `<<assumptions>>` | `type: text` with a default sentence | The PDF backend creates a `TextInput` from the default, then escapes and renders it |
+| `<<optional_note>>` | `type: text`, `required: false`, no default | The PDF backend binds an empty `RenderedContent`; no text appears |
 
 An input with a default may be omitted even though `required` otherwise defaults
 to true. An empty supplied `TextInput("")` is still a supplied value; it is not
@@ -377,11 +379,15 @@ result = create_renderer().render(
 template inputs and presentation defaults. They are separate objects.
 
 The [composition root](../src/report_agent/application/bootstrap.py) wires the
-following concrete collaborators into `ReportRenderer`:
+facade and PDF backend. `ReportRenderer` loads metadata and dispatches this
+schema-v1 request to `LatexPdfBackend`. All inputs here are user-sourced, so the
+facade skips content resolution. The PDF backend owns the detailed preparation
+and compilation steps:
 
 | Responsibility | Object / source |
 | --- | --- |
-| Orchestration | [ReportRenderer](../src/report_agent/application/service.py) |
+| Metadata, optional resolution and dispatch | [ReportRenderer](../src/report_agent/application/service.py) |
+| PDF build orchestration | [LatexPdfBackend](../src/report_agent/backends/latex_pdf.py) |
 | Parse and validate metadata | [MetadataLoader](../src/report_agent/metadata/loader.py), [metadata models](../src/report_agent/metadata/models.py) |
 | Resolve template resources | [LocalTemplateRepository](../src/report_agent/templates/repository.py) |
 | Check placeholder/input compatibility | [RenderValidator](../src/report_agent/application/validation.py) |
@@ -390,50 +396,58 @@ following concrete collaborators into `ReportRenderer`:
 | Image files | [ImageRenderer](../src/report_agent/rendering/images.py), [asset helpers](../src/report_agent/rendering/assets.py) |
 | Graphs and figures | [GraphRenderer](../src/report_agent/rendering/graphs/renderer.py), [MatplotlibFigureExporter](../src/report_agent/rendering/graphs/adapters.py) |
 | Native tables | [StylerTableRenderer](../src/report_agent/rendering/tables.py) |
+| PDF presentation | [LatexPlaceholderStyler](../src/report_agent/presentation/styler.py) |
 | Complete template expansion | [JinjaTemplateEngine](../src/report_agent/templates/engine.py) |
 | PDF compilation | [TexresCompiler](../src/report_agent/compilation/texres.py) |
 | Temporary build lifetime | [TemporaryWorkspaceManager](../src/report_agent/storage/workspace.py) |
-| Retain finished artifacts | [LocalArtifactStore](../src/report_agent/storage/artifacts.py) |
+| Replace artifact snapshot and publish output | [publish_snapshot / LocalArtifactStore](../src/report_agent/storage/artifacts.py) |
 
-Replaceable boundaries use `Protocol` contracts. Implementations are composed
-through the service constructor; the facade does not hard-code rendering details.
+Replaceable PDF boundaries use `Protocol` contracts. The facade passes its PDF
+collaborators to `LatexPdfBackend`; the backend owns the rendering details.
 
 ```mermaid
 sequenceDiagram
     participant Example as render.py
-    participant Service as ReportRenderer
+    participant Facade as ReportRenderer
     participant Metadata as MetadataLoader
-    participant Template as Repository / Validator
+    participant Backend as LatexPdfBackend
+    participant Template as Repository and Validator
     participant Workspace as WorkspaceManager
-    participant Content as Content renderers
+    participant Content as Content renderers and styler
     participant Jinja as JinjaTemplateEngine
     participant TeX as TexresCompiler
-    participant Store as ArtifactStore
+    participant Store as Snapshot and file publication
     Example->>Example: build_inputs() and prepare upstream assets
-    Example->>Service: render(RenderRequest)
-    Service->>Metadata: load(path, mapping, or model)
-    Metadata-->>Service: TemplateMetadata
-    Service->>Template: load bundle and validate inputs/placeholders
-    Service->>Workspace: create per-render workspace
-    Service->>Service: copy template resources
-    loop each declared input
-        Service->>Content: render typed value, or resolve default/optional
-        Content-->>Service: RenderedContent
+    Example->>Facade: render(RenderRequest)
+    Facade->>Metadata: load(path, mapping, or model)
+    Metadata-->>Facade: TemplateMetadata
+    Note over Facade: No queries or generated sources in this example
+    Facade->>Backend: render(request, metadata)
+    Backend->>Template: load bundle and validate inputs/placeholders
+    Backend->>Workspace: create per-render workspace
+    Backend->>Backend: copy template resources
+    loop each visible declared input
+        Backend->>Content: render supplied/default value and apply style
+        Content-->>Backend: RenderedContent
     end
-    Service->>Jinja: render complete template with fragments
-    Jinja-->>Service: expanded LaTeX
-    Service->>TeX: compile staged main.tex
-    TeX-->>Service: CompileResult
-    Service->>Store: publish source, logs, assets, and PDF
-    Service->>Workspace: leave context and clean temporary files
-    Service-->>Example: RenderResult
+    Backend->>Jinja: render complete template with fragments
+    Jinja-->>Backend: expanded LaTeX
+    Backend->>Backend: validate required package declarations
+    Backend->>TeX: compile staged main.tex
+    TeX-->>Backend: CompileResult
+    Backend->>Store: replace artifact snapshot and publish successful PDF
+    Backend->>Workspace: leave context and clean temporary files
+    Backend-->>Facade: RenderResult
+    Facade-->>Example: RenderResult
 ```
 
 ### Stage 1: metadata, template, and input validation
 
 `MetadataLoader` chooses a parser by file extension (`.json`, `.yaml`, `.yml`).
-A mapping goes directly to the same Pydantic schema; an existing metadata model
-is accepted directly. The current loader takes `Path` objects for file sources.
+For this schema-v1 example, a mapping validates as `TemplateMetadata`; an
+existing validated model is accepted directly. Schema-v2 mappings select
+`OfficeMetadata` and the other backend. The loader takes `Path` objects for file
+sources.
 
 `LocalTemplateRepository` verifies the `.tex` entrypoint and collects non-hidden
 bundle files. It rejects symlink resources and parent-traversing entrypoints.
@@ -446,7 +460,7 @@ partials, and checks:
 - Runtime input names are declared.
 - Required values are present, unless a default is available.
 - Runtime wrappers match the declared types.
-- Supplied text respects character limits.
+- Supplied/default text respects character limits and XML 1.0 character rules.
 - The selected type/backend has a registered renderer.
 
 Output paths must end in `.pdf`. Graphics dimensions and table option compatibility
@@ -455,12 +469,12 @@ later by their content adapters, before compilation.
 
 ### Stage 2: workspace and content preparation
 
-The workspace manager creates a unique temporary directory. The service copies
+The workspace manager creates a unique temporary directory. The PDF backend copies
 bundle resources into its `template/` subdirectory and operates on the copy.
 The original `.tex` source is preserved.
 
-For each declared input, the service resolves a supplied value, text default,
-or empty optional value. The registry maps metadata type and backend to strategy:
+For each visible declared input, the PDF backend selects a supplied value, text
+default or empty optional value. The registry maps metadata type and backend to strategy:
 
 ```text
 text  -> TextRenderer
@@ -470,11 +484,11 @@ table, styler -> StylerTableRenderer (default table backend)
 ```
 
 Each strategy returns `RenderedContent`: a trusted LaTeX fragment, any generated
-asset paths, and required package names. After Jinja expansion, the service checks
-those requirements against literal template declarations, local TeX/style/class
+asset paths, and required package names. After Jinja expansion, the PDF backend
+checks those requirements against literal template declarations, local TeX/style/class
 dependencies, and explicit `provided_packages` assertions. Missing declarations
 produce `missing_package` diagnostics naming the input before compilation. The
-complete template must load its packages; the service does not edit the preamble.
+complete template must load its packages; the backend does not edit the preamble.
 The scanner is not a full TeX interpreter or an installed-package checker.
 
 Text escapes special characters exactly once. Blank lines preserve paragraph
@@ -523,14 +537,17 @@ compiler failures, missing output, timeouts, and selected warnings into
 
 ### Stage 5: publication and cleanup
 
-The service retains expanded source, available compiler logs, prepared graphics,
-and supported local template resources. It publishes the final PDF only when
-there are no compiler errors and a PDF exists. Individual artifact publication
-uses a temporary destination file followed by replacement.
+The PDF backend retains expanded source, available compiler logs, prepared
+graphics and supported local template resources. `publish_snapshot` stages and
+replaces the complete artifact directory, removing files from previous runs. The
+final PDF is published separately only when there are no compiler errors and a
+valid output exists. Individual file publication uses temporary-file replacement;
+the report and artifact snapshot are not one combined atomic transaction.
 
 The workspace context then cleans temporary files. `RenderResult` contains
-`pdf_path`, diagnostics, and retained artifact paths. Compilation failures retain
-source/logs/assets when available and leave any previous destination PDF intact.
+`output_path`, `output_format`, diagnostics and retained artifact paths.
+For PDF output, `pdf_path` is a compatibility alias for `output_path`. Compilation
+failures retain source/logs/assets when available and leave any previous destination PDF intact.
 Failures before source generation may have diagnostics without retained artifacts.
 
 ## Metadata and input reference
@@ -569,13 +586,13 @@ Metadata defaults to `required: true`; the sample explicitly makes only
 ## Inspect or rebuild the generated artifacts
 
 To understand what compilation received, open the generated
-[expanded source](../output/pdf/comprehensive-report.artifacts/main.tex) beside
+`output/pdf/comprehensive-report.artifacts/main.tex` beside
 the [original template](../examples/comprehensive/main.tex). Look for the inserted
 escaped strings, graphics commands, and table environments. The expanded source
 has no remaining report placeholders.
 
-The [compiler log](../output/pdf/comprehensive-report.artifacts/compile.log) is the
-place to investigate TeX failures or overfull-box warnings. Actual asset hashes
+The generated `output/pdf/comprehensive-report.artifacts/compile.log` is the place
+to investigate TeX failures or overfull-box warnings. Actual asset hashes
 are visible in the generated `\includegraphics` commands.
 
 The retained source and assets can be compiled without rerunning the example's
@@ -606,7 +623,7 @@ promise of byte-identical PDFs across environments.
 | Add data rows to the appendix | `cohorts` DataFrame | `longtable` manages continuation pages |
 | Change fonts, margins, page headings, captions, or KPI boxes | `.tex` preamble/macros/body | The template owns page design |
 | Move the disclaimer | `\vfill` and surrounding template layout | TextRenderer does not determine position |
-| Switch JSON to YAML | Change the selected metadata path in `main()` | Both formats validate against one schema |
+| Switch JSON to YAML | Change the selected metadata path in `main()` | Both files in this example validate as schema-v1 `TemplateMetadata` |
 
 When copying the example into a real report, review both dynamic inputs and
 static business prose. For example, KPI comparison notes, captions, the priority
@@ -632,9 +649,10 @@ for rendering this report and 430 ms including caller-side preparation. Those
 measurements exclude Python startup, database retrieval, and model calls and are
 not a concurrency or production latency guarantee.
 
-The current renderer does not query databases, generate prose, validate business
-claims, automatically calculate totals, infer units, resize wide tables, select
-landscape pages, or generate a report from a chart-definition language. These
-responsibilities must be supplied by caller code, template authors, or future
-explicit integrations. The example demonstrates the implemented path from
-prepared content and a complete template to a PDF.
+This example supplies all data and prose directly. The normal renderer can also
+invoke an injected `ContentResolver` for query-backed tables and generated text;
+see [resolution wiring](content-resolution.md). Database/model implementations,
+business calculations and factual validation remain application-owned. The PDF
+backend does not infer units, automatically fit wide tables, select orientation or
+interpret a chart-definition language. Its job is to turn prepared content and
+the complete template into a PDF.

@@ -397,8 +397,8 @@ forward-tab formulas and the original animated media. Source XML that parses is
 not evidence that fonts, widths or object positions survived export.
 
 Animations require Slide Show playback checks in a target PowerPoint version;
-PDF previews show only a static frame. Desktop app control was not approved in the
-current environment, so no native PowerPoint playback claim is made. See the
+PDF previews show only a static frame. Native PowerPoint playback remains
+unverified. See the
 [Office guide](office-reports.md) for current deployment/format limits and the
 [ODF 1.3 schema](https://docs.oasis-open.org/office/OpenDocument/v1.3/os/part3-schema/OpenDocument-v1.3-os-part3-schema.html)
 for the complete vocabulary. Writer's

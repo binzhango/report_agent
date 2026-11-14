@@ -1,6 +1,12 @@
 # Report generation benchmark
 
-Run from the repository root with texres on `PATH`:
+Two local runners measure the current backends. Their results are observations,
+not latency or concurrency guarantees. Run from the repository root with the
+appropriate external engine installed.
+
+## PDF runner
+
+With texres on `PATH`:
 
 ```sh
 uv run python benchmarks/report_generation.py --runs 10
@@ -12,7 +18,7 @@ Every request prepares its own content and generates a new PDF. Temporary PDFs
 and assets are removed after the benchmark; every timing is retained in
 `output/benchmarks/report-generation.json`.
 
-## Local measurement: November 9, 2026
+### Historical PDF measurement: November 9, 2026
 
 This historical baseline predates the November 10 code review and figure-export
 cleanup. Rerun the command above to measure the current implementation.
@@ -30,7 +36,7 @@ The comprehensive case includes a logo, a live matplotlib figure, an existing
 graph PDF, six tables including two heatmaps, grouped rows, and a 64-row
 multi-page appendix. All 22 builds succeeded without compiler warnings.
 
-## Timing boundaries
+### PDF timing boundaries
 
 - **Preparation:** create runtime values and regenerate upstream assets. For the
   comprehensive report this includes DataFrames, the logo PNG, graph objects,
@@ -52,3 +58,35 @@ Runs are sequential in one process. These results do not establish concurrent
 throughput, memory limits, latency under contention, or behavior for much larger
 tables/documents. Ten samples characterize a small local run; tail-latency
 percentiles would need a larger sample.
+
+## Office runner
+
+With LibreOffice's `soffice` on `PATH`:
+
+```sh
+uv run python benchmarks/office_generation.py --runs 3
+```
+
+The runner builds DOCX and XLSX reports from a 100-row DataFrame. Each sample
+includes input preparation, renderer construction, metadata/template validation,
+ODF expansion, private-profile conversion, package verification, artifact
+publication and workspace cleanup. It creates a new renderer for each sample,
+so every sample includes its converter's version probe; it does not measure reuse
+of the per-instance version cache.
+
+Results, report files and their artifact snapshots are retained under
+`output/benchmarks/office/`; `timings.json` records elapsed seconds and final file
+size per sample. Unlike the PDF runner, this runner does not separate preparation
+from render time or identify a first-request series. Inspect each report's
+`build.json` / `export/version.txt` for the LibreOffice version used.
+
+PPTX, animation encoding, previews, database/model calls and process startup are
+excluded. Samples are sequential and do not establish service capacity or memory
+limits. Reusing an output stem replaces its artifact snapshot.
+
+### Historical Office measurement: November 13, 2026
+
+An earlier local run with LibreOfficeDev 26.8 measured 0.80–0.84 seconds per DOCX
+and 0.797–0.803 seconds per XLSX. It predates the resolver/publication review fixes;
+rerun the command to measure the current implementation. Those timings exclude
+preview generation and animation encoding.

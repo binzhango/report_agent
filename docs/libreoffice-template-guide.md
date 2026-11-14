@@ -743,7 +743,7 @@ output/
 ```
 
 `expanded.fodt` shows the exact source after slot replacement. `build.json`
-records the engine/version, output format, source hash and animation metadata
+records the engine/version, output format, expanded-source hash and animation metadata
 when applicable. Each artifact publication replaces the previous directory as a
 complete snapshot, so old hash-named media and failure logs do not accumulate.
 If staging the replacement fails, the previous snapshot remains intact.
@@ -777,7 +777,7 @@ playback verification remain outstanding. See the
 | XLSX summary is wrong | Inspect formula syntax, range size, tab names and supported functions; compare with source data. |
 | XLSX totals are text | Supply numeric DataFrame values and use number styles for display formatting. |
 | `converter_not_found` or `converter_timeout` | Check the executable path and retained conversion log; review document size and timeout configuration. |
-| Animation fails preservation checks | Inspect the source GIF and conversion log; the output must retain its original bytes as slide-referenced media. |
+| Animation fails preservation checks | Inspect the source GIF and conversion log; original GIF bytes must be reachable through presentation, slide, layout or master relationships. |
 | GIF looks static in a preview | Check the native PPTX in Slide Show mode; the preview only shows a frame. |
 
 For deeper XML examples, continue with the
